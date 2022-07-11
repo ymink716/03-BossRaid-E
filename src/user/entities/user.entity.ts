@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { classToPlain, Exclude } from 'class-transformer';
+import { Exclude } from 'class-transformer';
+import { RaidRecord } from 'src/raid/entities/raid.entity';
 import {
   Column,
   Entity,
@@ -42,4 +43,9 @@ export class User {
   @Column({ nullable: true })
   @Exclude({ toPlainOnly: true })
   hashedRefreshToken!: 'string';
+
+  @OneToMany(() => RaidRecord, (raidRecord) => raidRecord.user, {
+    nullable: true,
+  })
+  raids: RaidRecord[];
 }
