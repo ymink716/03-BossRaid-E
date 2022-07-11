@@ -8,6 +8,8 @@ import {
   Get,
   ValidationPipe,
   Req,
+  Inject,
+  CACHE_MANAGER,
 } from '@nestjs/common';
 import { JwtRefreshGuard } from 'src/auth/passport/guard/jwtRefreshGuard';
 import {
@@ -28,6 +30,7 @@ import { GetUser } from 'src/common/getUserDecorator';
 import { MSG } from 'src/common/response.enum';
 import { defaultTokenOption } from 'src/common/tokenOption.interface';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
+import { Cache } from 'cache-manager';
 
 /* 
   작성자 : 박신영, 김용민
@@ -38,6 +41,8 @@ export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly authService: AuthService,
+    @Inject(CACHE_MANAGER)
+    cacheManager: Cache,
   ) {}
 
   /* 

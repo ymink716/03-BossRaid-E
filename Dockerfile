@@ -1,8 +1,8 @@
 FROM node:17.2.0-alpine
 
-WORKDIR /money-book
-COPY ./package.json /money-book/
-COPY ./yarn.lock /money-book/
+WORKDIR /boss-raid/
+COPY ./package.json /boss-raid/
+COPY ./yarn.lock /boss-raid/
 RUN yarn install
-COPY . /money-book/
-CMD yarn run start:dev
+COPY . /boss-raid/
+CMD yarn start:dev
