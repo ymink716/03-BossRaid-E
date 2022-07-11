@@ -1,8 +1,10 @@
-import { Module } from '@nestjs/common';
+import { CacheModule, Module } from '@nestjs/common';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import type { RedisClientOptions } from 'redis';
+import * as redisStore from 'cache-manager-redis-store';
 
 @Module({
   imports: [
@@ -25,6 +27,11 @@ import { ConfigModule } from '@nestjs/config';
       retryAttempts: 30,
       retryDelay: 5000,
       timezone: 'Z',
+    }),
+    CacheModule.register<RedisClientOptions>({
+      store: redisStore,
+      url: process.env.REDIS_URL,
+      isGlobal: true,
     }),
   ],
 })
