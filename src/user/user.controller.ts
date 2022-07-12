@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   Body,
   Controller,
@@ -13,12 +12,7 @@ import {
   Param,
 } from '@nestjs/common';
 import { JwtRefreshGuard } from 'src/auth/passport/guard/jwtRefreshGuard';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiCreatedResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuthService } from 'src/auth/auth.service';
 import { LoginDto } from 'src/user/dto/login.dto';
@@ -55,11 +49,7 @@ export class UserController {
   async signUp(@Body() createUserDto: CreateUserDTO) {
     const result = await this.userService.createUser(createUserDto);
 
-    return UserResponse.response(
-      result,
-      MSG.createUser.code,
-      MSG.createUser.msg,
-    );
+    return UserResponse.response(result, MSG.createUser.code, MSG.createUser.msg);
   }
 
   /**
@@ -82,12 +72,8 @@ export class UserController {
   @ApiCreatedResponse({ description: MSG.loginUser.msg, type: UserResponse })
   @UseGuards(LocalAuthGuard)
   @Post('/login')
-  async login(
-    @Res({ passthrough: true }) res: Response,
-    @GetUser() user: User,
-  ) {
-    const { accessToken, accessOption, refreshToken, refreshOption } =
-      await this.authService.getTokens(user.email);
+  async login(@Res({ passthrough: true }) res: Response, @GetUser() user: User) {
+    const { accessToken, accessOption, refreshToken, refreshOption } = await this.authService.getTokens(user.email);
 
     await this.userService.setCurrentRefreshToken(refreshToken, user.email);
 
@@ -104,23 +90,15 @@ export class UserController {
   @ApiCreatedResponse({ description: '성공' })
   @UseGuards(JwtAuthGuard)
   @Post('/logout')
-  async logout(
-    @Res({ passthrough: true }) res: Response,
-    @GetUser() user: User,
-  ) {
-    const { accessOption, refreshOption } =
-      this.authService.getCookiesForLogOut();
+  async logout(@Res({ passthrough: true }) res: Response, @GetUser() user: User) {
+    const { accessOption, refreshOption } = this.authService.getCookiesForLogOut();
 
     await this.userService.removeRefreshToken(user.id);
 
     res.cookie('Authentication', '', accessOption);
     res.cookie('Refresh', '', refreshOption);
 
-    const result = UserResponse.response(
-      user,
-      MSG.logoutUser.code,
-      MSG.logoutUser.msg,
-    );
+    const result = UserResponse.response(user, MSG.logoutUser.code, MSG.logoutUser.msg);
     return result;
   }
 
@@ -130,19 +108,12 @@ export class UserController {
   @UseGuards(JwtRefreshGuard)
   @ApiBearerAuth('access_token')
   @Get('/refreshToken')
-  async refresh(
-    @GetUser() user: User,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async refresh(@GetUser() user: User, @Res({ passthrough: true }) res: Response) {
     const accessToken = await this.authService.getJwtAccessToken(user.email);
     const accessOption = defaultTokenOption;
 
     res.cookie('Authentication', accessToken, accessOption);
-    const result = UserResponse.response(
-      user,
-      MSG.refreshTokenWithUser.code,
-      MSG.refreshTokenWithUser.msg,
-    );
+    const result = UserResponse.response(user, MSG.refreshTokenWithUser.code, MSG.refreshTokenWithUser.msg);
     return result;
   }
 }

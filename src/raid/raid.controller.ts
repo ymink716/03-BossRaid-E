@@ -49,11 +49,10 @@ export class RaidController {
     description: MSG.enterBossRaid.msg,
   })
   @Post('enter')
-  async enterRaid(@Body() createRaidDto: CreateRaidDTO, @GetUser() user: User) {
-    const result = await this.raidService.enterBossRaid(createRaidDto, user);
+  async enterRaid(@Body() createRaidDto: CreateRaidDTO) {
+    const result = await this.raidService.enterBossRaid(createRaidDto);
     // 캐시에 항목 추가
-    const setRedis: RaidStatus = { canEnter: false, enteredUserId: user.id };
-    await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
+
     return result;
   }
 
