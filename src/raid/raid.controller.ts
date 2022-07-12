@@ -1,4 +1,5 @@
 import {
+  Body,
   CACHE_MANAGER,
   Controller,
   Get,
@@ -6,11 +7,14 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { Cache } from 'cache-manager';
+import { RaidEndDto } from './dto/raidEnd.dto';
 import { raidStatus } from './dto/raidStatusDto';
 import { RaidRecord } from './entities/raid.entity';
 import { RaidService } from './raid.service';
 
+@ApiTags('bossRaid')
 @Controller('bossRaid')
 export class RaidController {
   constructor(
@@ -62,6 +66,12 @@ export class RaidController {
   @Post('enter')
   enterRaid() {}
 
+  /* 
+    작성자 : 김용민
+  */
+  @ApiBody({ type: RaidEndDto })
   @Patch('end')
-  endRaid() {}
+  endRaid(@Body() raidEndDto: RaidEndDto) {
+    return this.raidService.endRaid(raidEndDto);
+  }
 }
