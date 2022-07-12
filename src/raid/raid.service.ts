@@ -8,8 +8,17 @@ import { RaidRecord } from './entities/raid.entity';
 export class RaidService {
   constructor(
     @InjectRepository(RaidRecord)
-    private readonly raidRecordRepositroy: Repository<RaidRecord>,
+    private readonly raidRecordRepository: Repository<RaidRecord>,
     @InjectRepository(User)
-    private readonly userRepositroy: Repository<User>,
+    private readonly userRepository: Repository<User>,
   ) {}
+
+  async fetchRecentRaidRecord() {
+    const db = await this.raidRecordRepository
+      .createQueryBuilder('record')
+      .leftJoinAndSelect('record.user', 'user')
+      .orderBy('enterTime', 'DESC')
+      .getOne();
+    if (db) return db;
+  }
 }
