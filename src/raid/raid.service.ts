@@ -36,22 +36,43 @@ export class RaidService {
     private readonly cacheManager: Cache,
   ) {}
 
-  async enterBossRaid(createRaidDto: CreateRaidDTO, user: User): Promise<EnterBossRaidOption> {
+  /* 
+    작성자 : 박신영
+  */
+  async enterBossRaid(createRaidDto: CreateRaidDTO): Promise<EnterBossRaidOption> {
     // 레이드 상태 조회
+    let redisResult: RaidStatus;
+    let dbResult: RaidStatus;
+    try {
+      // 레디스 조회시 결과
+      redisResult = await this.getStatusFromRedis();
+    } catch (error) {
+      console.log(error);
+      //레디스 에러 시 DB에서의 상태 조회 결과
+      dbResult = await this.getStatusFromDB();
+    }
     // 레이드 시작 불가능
 
+    if (!redisResult.canEnter || !dbResult.canEnter) {
+      throw new ForbiddenException('보스 레이드가 실행 중입니다.');
+    }
     // 레이드 시작 가능
     try {
       const newBossRaid = this.raidRecordRepository.create({
         ...createRaidDto,
-        userId: user.id,
         score: 0,
       });
       const result = await this.raidRecordRepository.insert(newBossRaid);
+      const raidRecordId = result.identifiers[0].id;
+
+      const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId, raidRecordId };
+      await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
+
       const enterOption: EnterBossRaidOption = {
         isEntered: true,
-        raidRecordId: result.identifiers[0].id,
+        raidRecordId,
       };
+
       return enterOption;
     } catch (e) {
       console.error(e);
@@ -156,8 +177,8 @@ export class RaidService {
 
     const result: RaidStatus =
       duration <= bossRaid.bossRaidLimitSeconds || db.endTime === db.enterTime
-        ? { canEnter: false, enteredUserId: db.user.id }
-        : { canEnter: true, enteredUserId: null };
+        ? { canEnter: false, enteredUserId: db.user.id, raidRecordId: db.id } // raidRecordId?
+        : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
   }
@@ -165,7 +186,7 @@ export class RaidService {
   async getStatusFromRedis(): Promise<RaidStatus> {
     const getRedis: RaidStatus = await this.cacheManager.get('raidStatus');
 
-    const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null };
+    const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
   }
