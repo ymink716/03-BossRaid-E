@@ -1,25 +1,14 @@
-import {
-  Body,
-  CACHE_MANAGER,
-  Controller,
-  Get,
-  Inject,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, CACHE_MANAGER, Controller, Get, Inject, Patch, Post, UseGuards } from '@nestjs/common';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { Cache } from 'cache-manager';
+import { RaidEndDto } from './dto/raidEnd.dto';
+import { RaidStatus } from './dto/raidStatus.dto';
 import { RaidService } from './raid.service';
 import { CreateRaidDTO } from './dto/createRaid.dto';
-import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
+
 import { GetUser } from 'src/common/getUserDecorator';
 import { User } from 'src/user/entities/user.entity';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiCreatedResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 import { MSG } from 'src/common/response.enum';
 
@@ -34,8 +23,26 @@ export class RaidController {
     private readonly cacheManager: Cache,
   ) {}
 
+  /* 
+    작성자 : 김태영
+  */
+  @ApiCreatedResponse({
+    status: MSG.getRaidStatus.code,
+    description: MSG.getRaidStatus.msg,
+  })
   @Get()
-  getRaid() {}
+  async getRaidStatus() {
+    try {
+      // 레디스 조회시 결과
+      const redisResult: RaidStatus = await this.raidService.getStatusFromRedis();
+      return redisResult;
+    } catch (error) {
+      console.log(error);
+      //레디스 에러 시 DB에서의 상태 조회 결과
+      const dbResult = await this.raidService.getStatusFromDB();
+      return dbResult;
+    }
+  }
 
   @ApiBody({ type: CreateRaidDTO })
   @ApiCreatedResponse({
@@ -44,12 +51,18 @@ export class RaidController {
   @Post('enter')
   async enterRaid(@Body() createRaidDto: CreateRaidDTO, @GetUser() user: User) {
     const result = await this.raidService.enterBossRaid(createRaidDto, user);
-
     // 캐시에 항목 추가
-    await this.cacheManager.set('raidRecord', result, { ttl: 180 });
-    return this.cacheManager.get('raidRecord');
+    const setRedis: RaidStatus = { canEnter: false, enteredUserId: user.id };
+    await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
+    return result;
   }
 
+  /* 
+    작성자 : 김용민
+  */
+  @ApiBody({ type: RaidEndDto })
   @Patch('end')
-  endRaid() {}
+  endRaid(@Body() raidEndDto: RaidEndDto) {
+    return this.raidService.endRaid(raidEndDto);
+  }
 }

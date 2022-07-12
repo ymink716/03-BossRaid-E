@@ -10,6 +10,7 @@ import {
   Req,
   Inject,
   CACHE_MANAGER,
+  Param,
 } from '@nestjs/common';
 import { JwtRefreshGuard } from 'src/auth/passport/guard/jwtRefreshGuard';
 import {
@@ -35,8 +36,8 @@ import { Cache } from 'cache-manager';
 /* 
   작성자 : 박신영, 김용민
 */
-@ApiTags('User')
-@Controller()
+@ApiTags('user')
+@Controller('user')
 export class UserController {
   constructor(
     private readonly userService: UserService,
@@ -44,6 +45,35 @@ export class UserController {
     @Inject(CACHE_MANAGER)
     cacheManager: Cache,
   ) {}
+
+  /* 
+    - 사용자를 생성하여 회원가입 처리
+  */
+  @Post('')
+  @ApiBody({ type: CreateUserDTO })
+  @ApiCreatedResponse({ description: MSG.createUser.msg, type: UserResponse })
+  async signUp(@Body() createUserDto: CreateUserDTO) {
+    const result = await this.userService.createUser(createUserDto);
+
+    return UserResponse.response(
+      result,
+      MSG.createUser.code,
+      MSG.createUser.msg,
+    );
+  }
+
+  /**
+   * 유저 정보 조회
+   */
+  @ApiBearerAuth('access_token')
+  @UseGuards(JwtAuthGuard)
+  @Get('/:userId')
+  @ApiCreatedResponse({ description: MSG.getUser.msg, type: UserResponse })
+  async getUserInfo(@Param('userId') userId: number) {
+    const result = await this.userService.getUserInfo(userId);
+
+    return UserResponse.response(result, MSG.getUser.code, MSG.getUser.msg);
+  }
 
   /* 
     - access token, resfresh token 발급하여 로그인 처리
@@ -65,21 +95,6 @@ export class UserController {
     res.cookie('Refresh', refreshToken, refreshOption);
     const result = accessToken;
     return UserResponse.response(result, MSG.loginUser.code, MSG.loginUser.msg);
-  }
-
-  /* 
-    - 사용자를 생성하여 회원가입 처리
-  */
-  @Post('/signup')
-  @ApiBody({ type: CreateUserDTO })
-  @ApiCreatedResponse({ description: MSG.createUser.msg, type: UserResponse })
-  async signUp(@Body() createUserDto: CreateUserDTO) {
-    const result = await this.userService.createUser(createUserDto);
-    return UserResponse.response(
-      result,
-      MSG.createUser.code,
-      MSG.createUser.msg,
-    );
   }
 
   /* 
