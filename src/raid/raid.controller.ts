@@ -8,7 +8,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBody, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 import { Cache } from 'cache-manager';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { raidStatus } from './dto/raidStatusDto';
@@ -92,6 +92,7 @@ export class RaidController {
   /* 
     작성자 : 김용민
   */
+  @ApiOperation({ summary: '레이드 종료' })
   @ApiBody({ type: RaidEndDto })
   @Patch('end')
   endRaid(@Body() raidEndDto: RaidEndDto) {

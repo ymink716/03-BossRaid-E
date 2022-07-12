@@ -87,43 +87,42 @@ export class RaidService {
         method: 'GET',
       });
       const bossRaid = response.data.bossRaids[0];
+      
+      const nowMoment = moment().format();
+      record.enterTime
+      const startedAt = moment(record.enterTime).format();
 
-      // 시작한 시간으로부터 레이드 제한시간이 지났다면 예외 처리
-      const now = moment();
-      const startedAt = moment(record.enterTime);
-      console.log(now, startedAt);
-      const duration = moment.duration(now.diff(startedAt)).asSeconds();
-      if (duration > bossRaid.bossRaidLimitSeconds) {
-        throw new BadRequestException('레이드 제한시간이 지났습니다.');
-      }
-      record.endTime = now.toDate();
-
+      return {nowMoment, dbEnterTime: record.enterTime, momentEnterTime: startedAt }
+      // if (duration > bossRaid.bossRaidLimitSeconds) {
+      //   throw new BadRequestException('레이드 제한시간이 지났습니다.');
+      // }
+      // record.endTime = now.toDate();
       // 레벨에 따른 스코어 반영
-      for (const l of bossRaid.levels) {
-        if (l.level === record.level) {
-          record.score = l.score;
-          break;
-        }
-      }
+      // for (const l of bossRaid.levels) {
+      //   if (l.level === record.level) {
+      //     record.score = l.score;
+      //     break;
+      //   }
+      // }
 
-      const user: User = await this.userRepository.findOne({
-        where: {
-          id: userId,
-        },
-      });
+      // const user: User = await this.userRepository.findOne({
+      //   where: {
+      //     id: userId,
+      //   },
+      // });
 
-      if (!user) {
-        throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
-      }
+      // if (!user) {
+      //   throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
+      // }
 
-      //user.total = user.total + record.score;
+      // user.totalScore = user.totalScore + record.score;
 
       // db transaction.. manager +
 
-      await this.raidRecordRepository.save(record);
-      await this.userRepository.save(user);
+      // await this.raidRecordRepository.save(record);
+      // await this.userRepository.save(user);
 
-      return record;
+      // return record;
     } catch (error) {
       console.error(error);
     }

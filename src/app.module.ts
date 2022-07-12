@@ -28,7 +28,8 @@ import { RaidModule } from './raid/raid.module';
       logging: true,
       retryAttempts: 30,
       retryDelay: 5000,
-      timezone: 'Z',
+      //timezone: 'Z',
+      timezone: 'Asia/Seoul',
     }),
     CacheModule.register<RedisClientOptions>({
       store: redisStore,
