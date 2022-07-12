@@ -10,6 +10,8 @@ import {
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { Cache } from 'cache-manager';
 import { RaidEndDto } from './dto/raidEnd.dto';
+import { raidStatus } from './dto/raidStatusDto';
+import { RaidRecord } from './entities/raid.entity';
 import { RaidService } from './raid.service';
 
 @ApiTags('bossRaid')
@@ -22,7 +24,44 @@ export class RaidController {
   ) {}
 
   @Get()
-  getRaid() {}
+  async getRaidStatus() {
+    let result: raidStatus;
+
+    try {
+      const redis: RaidRecord = await this.cacheManager.get('raidRecord');
+
+      if (redis) {
+        result = {
+          canEnter: false,
+          enteredUserId: redis.user.id,
+        };
+        return result;
+      } else {
+        result = {
+          canEnter: true,
+          enteredUserId: null,
+        };
+        return result;
+      }
+    } catch (error) {
+      console.log(error);
+      const db = await this.raidService.fetchRecentRaidRecord();
+
+      if (db) {
+        result = {
+          canEnter: false,
+          enteredUserId: db.user.id,
+        };
+        return result;
+      } else {
+        result = {
+          canEnter: true,
+          enteredUserId: null,
+        };
+        return result;
+      }
+    }
+  }
 
   @Post('enter')
   enterRaid() {}

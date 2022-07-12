@@ -19,10 +19,11 @@ moment.tz.setDefault('Asia/Seoul');
 export class RaidService {
   constructor(
     @InjectRepository(RaidRecord)
-    private readonly raidRecordRepositroy: Repository<RaidRecord>,
+    private readonly raidRecordRepository: Repository<RaidRecord>,
     @InjectRepository(User)
-    private readonly userRepositroy: Repository<User>,
+    private readonly userRepository: Repository<User>,
   ) {}
+
 
   /* 
     작성자 : 김용민
@@ -96,5 +97,13 @@ export class RaidService {
     } catch (error) {
       console.error(error);
     }
+  
+  async fetchRecentRaidRecord() {
+    const db = await this.raidRecordRepository
+      .createQueryBuilder('record')
+      .leftJoinAndSelect('record.user', 'user')
+      .orderBy('enterTime', 'DESC')
+      .getOne();
+    if (db) return db;
   }
 }
