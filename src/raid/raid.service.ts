@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import {
   BadRequestException,
+  CACHE_MANAGER,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,11 +15,11 @@ import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
 import { CreateRaidDTO } from './dto/createRaid.dto';
 import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
+import { RaidStatus } from './dto/raidStatus.dto';
+import { Cache } from 'cache-manager';
 import { RequestRaidDto } from './dto/requestRaid.dto';
 import { RankingInfo } from './rankingInfo.interface';
-import { userInfo } from 'os';
 import { ResponseRaidDto } from './dto/responseRaid.dto';
-import { GetUser } from 'src/common/getUserDecorator';
 
 const moment = require('moment');
 require('moment-timezone');
@@ -30,13 +32,11 @@ export class RaidService {
     private readonly raidRecordRepository: Repository<RaidRecord>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
 
-
-  async enterBossRaid(
-    createRaidDto: CreateRaidDTO,
-    user: User,
-  ): Promise<EnterBossRaidOption> {
+  async enterBossRaid(createRaidDto: CreateRaidDTO, user: User): Promise<EnterBossRaidOption> {
     // 레이드 상태 조회
     // 레이드 시작 불가능
 
@@ -56,7 +56,6 @@ export class RaidService {
     } catch (e) {
       console.error(e);
     }
-
   }
   /* 
     작성자 : 김용민
@@ -133,13 +132,42 @@ export class RaidService {
       console.error(error);
     }
   }
-  async fetchRecentRaidRecord() {
+
+  /* 
+    작성자 : 김태영
+  */
+  async getStatusFromDB(): Promise<RaidStatus> {
     const db = await this.raidRecordRepository
       .createQueryBuilder('record')
       .leftJoinAndSelect('record.user', 'user')
       .orderBy('enterTime', 'DESC')
       .getOne();
-    if (db) return db;
+
+    const response = await axios({
+      url: process.env.STATIC_DATA_URL,
+      method: 'GET',
+    });
+    const bossRaid = response.data.bossRaids[0];
+
+    const now = moment();
+    const startedAt = moment(db.enterTime);
+    console.log(now, startedAt);
+    const duration = moment.duration(now.diff(startedAt)).asSeconds();
+
+    const result: RaidStatus =
+      duration <= bossRaid.bossRaidLimitSeconds || db.endTime === db.enterTime
+        ? { canEnter: false, enteredUserId: db.user.id }
+        : { canEnter: true, enteredUserId: null };
+
+    return result;
+  }
+
+  async getStatusFromRedis(): Promise<RaidStatus> {
+    const getRedis: RaidStatus = await this.cacheManager.get('raidStatus');
+
+    const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null };
+
+    return result;
   }
 
   /* 작성자 : 염하늘
