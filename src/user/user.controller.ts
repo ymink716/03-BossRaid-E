@@ -63,6 +63,7 @@ export class UserController {
   }
 
   /**
+   * 작성자 : 김지유
    * 유저 정보 조회
    */
   @ApiBearerAuth('access_token')
