@@ -47,6 +47,8 @@ export class UserService {
     } catch (error) {
       if (error.errno === 1062) {
         throw new ConflictException('해당 이메일은 이미 사용중입니다.');
+        // NICK NAME EXCEPTION 
+
       } else {
         throw new InternalServerErrorException();
       }

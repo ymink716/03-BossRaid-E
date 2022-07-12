@@ -1,7 +1,8 @@
-version: '3.8'
+version: '3.7'
 
 services:
   backend-server:
+    image: 'myapp'
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,11 +13,11 @@ services:
       - 3000:3000
 
   database-server:
-    platform: linux/x86_64 # 윈도우 환경에 설치된 도커를 쓰신다면 이부분을 제외해주세요!
+    # platform: linux/x86_64 # 윈도우 환경에 설치된 도커를 쓰신다면 이부분을 제외해주세요!
     image: mysql:5.7
     restart: always
     environment:
-      MYSQL_DATABASE: 'boss-raid'
+      # MYSQL_DATABASE: 'boss-raid'
       MYSQL_ROOT_PASSWORD: '2222'
       MYSQL_TCP_PORT: 3308
       TZ: 'Asia/Seoul'
@@ -35,4 +36,4 @@ services:
     image: redis:latest
     # command: ['exec -it redis-cli', 'WATCH raidStatus']
     ports:
-      - 6379:6379
+      - 6379:6380

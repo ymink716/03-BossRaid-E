@@ -17,6 +17,9 @@ import { CreateRaidDTO } from './dto/createRaid.dto';
 import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
 import { RaidStatus } from './dto/raidStatus.dto';
 import { Cache } from 'cache-manager';
+import { RequestRaidDto } from './dto/requestRaid.dto';
+import { RankingInfo } from './rankingInfo.interface';
+import { ResponseRaidDto } from './dto/responseRaid.dto';
 
 const moment = require('moment');
 require('moment-timezone');
@@ -33,22 +36,43 @@ export class RaidService {
     private readonly cacheManager: Cache,
   ) {}
 
-  async enterBossRaid(createRaidDto: CreateRaidDTO, user: User): Promise<EnterBossRaidOption> {
+  /* 
+    작성자 : 박신영
+  */
+  async enterBossRaid(createRaidDto: CreateRaidDTO): Promise<EnterBossRaidOption> {
     // 레이드 상태 조회
+    let redisResult: RaidStatus;
+    let dbResult: RaidStatus;
+    try {
+      // 레디스 조회시 결과
+      redisResult = await this.getStatusFromRedis();
+    } catch (error) {
+      console.log(error);
+      //레디스 에러 시 DB에서의 상태 조회 결과
+      dbResult = await this.getStatusFromDB();
+    }
     // 레이드 시작 불가능
 
+    if (!redisResult.canEnter || !dbResult.canEnter) {
+      throw new ForbiddenException('보스 레이드가 실행 중입니다.');
+    }
     // 레이드 시작 가능
     try {
       const newBossRaid = this.raidRecordRepository.create({
         ...createRaidDto,
-        userId: user.id,
         score: 0,
       });
       const result = await this.raidRecordRepository.insert(newBossRaid);
+      const raidRecordId = result.identifiers[0].id;
+
+      const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId, raidRecordId };
+      await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
+
       const enterOption: EnterBossRaidOption = {
         isEntered: true,
-        raidRecordId: result.identifiers[0].id,
+        raidRecordId,
       };
+
       return enterOption;
     } catch (e) {
       console.error(e);
@@ -59,7 +83,7 @@ export class RaidService {
   */
   // 레디스 사용 부분 추가 필요
   // - 레이드 종료 시 보스레이드 canEnter=true
-  // - 레이드 종료 시 랭킹에 업뎃
+  // - 레이드 종료 시 ㅂ랭킹에 업뎃
   // axios 에러 추가 필요
   // 센트리로 에러 관리 추가 필요
   // StaticData 웹서버 캐싱?
@@ -152,8 +176,10 @@ export class RaidService {
     const duration = moment.duration(now.diff(startedAt)).asSeconds();
 
     const result: RaidStatus =
+
       duration <= bossRaid.bossRaidLimitSeconds || raidRecord.endTime === raidRecord.enterTime
         ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
+
         : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
@@ -165,5 +191,48 @@ export class RaidService {
     const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
+  }
+
+  /* 작성자 : 염하늘
+    - raid 랭킹 조회 로직 구현
+  */
+  
+  async rankRaid(dto : RequestRaidDto) {
+
+    // 1유저 조회
+    const findUser: User = await this.userRepository.findOne({
+        where: {
+          id:  dto.userId
+        },
+      });
+      if (!findUser) {
+        throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
+      }
+      // 모든 유저 조회
+
+      const response = await axios({
+        url: process.env.STATIC_DATA_URL,
+        method: 'GET',
+      });
+
+      const bossRaid = response.data.bossRaids[0];
+
+      console.log(111111,bossRaid.levels)
+
+      const myInfo : RankingInfo = {
+        ranking: 1,
+        userId: findUser.id,
+        totalScore : findUser.totalScore
+      }
+
+      const res : RankingInfo = {
+      ranking:bossRaid.ranking,
+      userId:7, 
+     totalScore : bossRaid
+      }
+
+      const result  = ResponseRaidDto.usersInfo(myInfo,res)
+
+    return  result
   }
 }
