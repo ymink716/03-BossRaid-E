@@ -20,9 +20,7 @@ import { GetUser } from 'src/common/getUserDecorator';
 import { User } from 'src/user/entities/user.entity';
 import {
   ApiBearerAuth,
-  ApiBody,
   ApiCreatedResponse,
-  ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 import { MSG } from 'src/common/response.enum';
@@ -30,7 +28,6 @@ import { MSG } from 'src/common/response.enum';
 @ApiBearerAuth('access_token')
 @UseGuards(JwtAuthGuard)
 @ApiTags('BossRaid')
-
 @Controller('bossRaid')
 export class RaidController {
   constructor(

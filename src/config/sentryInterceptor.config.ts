@@ -17,14 +17,14 @@ export class SentryInterceptor implements NestInterceptor{
             catchError((error) => {
                 Sentry.captureException(error);
 
-                let errorType = 'e'
+                let errorType = ErrorType.
                 errorType = errorType ?? 'UNEXPECTED_ERROR';
 
                 return of({
                     statusCode: error.status,
                     errorType,
                     message: error.response.message,
-                    timestamp: new Date().getTime(),
+                 //   timestamp: new Date().getTime(),
                 });
             }),
         );

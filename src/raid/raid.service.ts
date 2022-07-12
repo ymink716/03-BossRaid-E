@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 import {
   BadRequestException,
   ForbiddenException,
@@ -36,12 +37,12 @@ export class RaidService {
 
     // 레이드 시작 가능
     try {
-      const newBossRaid = this.raidRecordRepositroy.create({
+      const newBossRaid = this.raidRecordRepository.create({
         ...createRaidDto,
         userId: user.id,
         score: 0,
       });
-      const result = await this.raidRecordRepositroy.insert(newBossRaid);
+      const result = await this.raidRecordRepository.insert(newBossRaid);
       const enterOption: EnterBossRaidOption = {
         isEntered: true,
         raidRecordId: result.identifiers[0].id,
@@ -51,7 +52,7 @@ export class RaidService {
       console.error(e);
     }
 
-
+  }
   /* 
     작성자 : 김용민
   */
@@ -65,7 +66,7 @@ export class RaidService {
     const { userId, raidRecordId } = raidEndDto;
 
     try {
-      const record: RaidRecord = await this.raidRecordRepositroy.findOne({
+      const record: RaidRecord = await this.raidRecordRepository.findOne({
         where: {
           id: raidRecordId,
         },
@@ -105,7 +106,7 @@ export class RaidService {
         }
       }
 
-      const user: User = await this.userRepositroy.findOne({
+      const user: User = await this.userRepository.findOne({
         where: {
           id: userId,
         },
@@ -117,14 +118,16 @@ export class RaidService {
 
       //user.total = user.total + record.score;
 
-      await this.raidRecordRepositroy.save(record);
-      await this.userRepositroy.save(user);
+      // db transaction.. manager +
+
+      await this.raidRecordRepository.save(record);
+      await this.userRepository.save(user);
 
       return record;
     } catch (error) {
       console.error(error);
     }
-  
+  }
   async fetchRecentRaidRecord() {
     const db = await this.raidRecordRepository
       .createQueryBuilder('record')
