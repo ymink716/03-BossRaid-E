@@ -19,14 +19,14 @@ import { compare } from 'bcryptjs';
 export class UserService {
   constructor(
     @InjectRepository(User)
-    private userRepository: Repository<User>,
+    private readonly userRepository: Repository<User>,
   ) {}
 
   /* 
     - 비밀번호 체크, 중복 이메일 확인 후 사용자를 추가합니다.
   */
   async createUser(createUserDto: CreateUserDTO): Promise<User> {
-    const { email, password, confirmPassword } = createUserDto;
+    const { email, password, nickname, confirmPassword } = createUserDto;
 
     if (password !== confirmPassword) {
       throw new BadRequestException('비밀번호가 서로 일치하지 않습니다.');
@@ -37,6 +37,7 @@ export class UserService {
 
     const user = this.userRepository.create({
       email,
+      nickname,
       password: hashedPassword,
     });
 
@@ -50,6 +51,24 @@ export class UserService {
         throw new InternalServerErrorException();
       }
     }
+  }
+
+  /* 
+    - id로 사용자를 가져옵니다.
+  */
+  async getUserInfo(id: number): Promise<User | undefined> {
+    const user = (
+      await this.userRepository.find({
+        where: { id },
+        relations: ['raids'],
+      })
+    )[0];
+
+    if (!user) {
+      throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
+    }
+
+    return user;
   }
 
   /* 
@@ -89,7 +108,9 @@ export class UserService {
       user.hashedRefreshToken,
     );
 
-    if (isRefreshTokenMatching) return user;
+    if (isRefreshTokenMatching) {
+      return user;
+    }
   }
 
   /* 

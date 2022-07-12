@@ -8,7 +8,11 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { Cache } from 'cache-manager';
+import { RaidEndDto } from './dto/raidEnd.dto';
+import { raidStatus } from './dto/raidStatusDto';
+import { RaidRecord } from './entities/raid.entity';
 import { RaidService } from './raid.service';
 import { CreateRaidDTO } from './dto/createRaid.dto';
 import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
@@ -26,6 +30,7 @@ import { MSG } from 'src/common/response.enum';
 @ApiBearerAuth('access_token')
 @UseGuards(JwtAuthGuard)
 @ApiTags('BossRaid')
+
 @Controller('bossRaid')
 export class RaidController {
   constructor(
@@ -35,7 +40,44 @@ export class RaidController {
   ) {}
 
   @Get()
-  getRaid() {}
+  async getRaidStatus() {
+    let result: raidStatus;
+
+    try {
+      const redis: RaidRecord = await this.cacheManager.get('raidRecord');
+
+      if (redis) {
+        result = {
+          canEnter: false,
+          enteredUserId: redis.user.id,
+        };
+        return result;
+      } else {
+        result = {
+          canEnter: true,
+          enteredUserId: null,
+        };
+        return result;
+      }
+    } catch (error) {
+      console.log(error);
+      const db = await this.raidService.fetchRecentRaidRecord();
+
+      if (db) {
+        result = {
+          canEnter: false,
+          enteredUserId: db.user.id,
+        };
+        return result;
+      } else {
+        result = {
+          canEnter: true,
+          enteredUserId: null,
+        };
+        return result;
+      }
+    }
+  }
 
   @ApiBody({ type: CreateRaidDTO })
   @ApiCreatedResponse({
@@ -50,6 +92,12 @@ export class RaidController {
     return this.cacheManager.get('raidRecord');
   }
 
+  /* 
+    작성자 : 김용민
+  */
+  @ApiBody({ type: RaidEndDto })
   @Patch('end')
-  endRaid() {}
+  endRaid(@Body() raidEndDto: RaidEndDto) {
+    return this.raidService.endRaid(raidEndDto);
+  }
 }

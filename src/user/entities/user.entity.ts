@@ -13,7 +13,7 @@ import {
 @Entity()
 export class User {
   @ApiProperty()
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('increment')
   id: number;
 
   @ApiProperty({ description: '이메일', example: 'test@mail.com' })
@@ -23,6 +23,14 @@ export class User {
   @Column()
   @Exclude({ toPlainOnly: true })
   password: string;
+
+  @ApiProperty({ description: '닉네임', example: '한글nickname123' })
+  @Column({ unique: true })
+  nickname: string;
+
+  @ApiProperty({ description: '총 점수' })
+  @Column({ default: 0 })
+  totalScore: number;
 
   @ApiProperty({ description: '생성일' })
   @CreateDateColumn({
