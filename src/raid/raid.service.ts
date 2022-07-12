@@ -119,7 +119,7 @@ export class RaidService {
 
       //user.total = user.total + record.score;
 
-      // db transaction.. manager +
+      // raidRecord transaction.. manager +
 
       await this.raidRecordRepository.save(record);
       await this.userRepository.save(user);
@@ -134,7 +134,7 @@ export class RaidService {
     작성자 : 김태영
   */
   async getStatusFromDB(): Promise<RaidStatus> {
-    const db = await this.raidRecordRepository
+    const raidRecord = await this.raidRecordRepository
       .createQueryBuilder('record')
       .leftJoinAndSelect('record.user', 'user')
       .orderBy('enterTime', 'DESC')
@@ -147,14 +147,14 @@ export class RaidService {
     const bossRaid = response.data.bossRaids[0];
 
     const now = moment();
-    const startedAt = moment(db.enterTime);
+    const startedAt = moment(raidRecord.enterTime);
     console.log(now, startedAt);
     const duration = moment.duration(now.diff(startedAt)).asSeconds();
 
     const result: RaidStatus =
-      duration <= bossRaid.bossRaidLimitSeconds || db.endTime === db.enterTime
-        ? { canEnter: false, enteredUserId: db.user.id }
-        : { canEnter: true, enteredUserId: null };
+      duration <= bossRaid.bossRaidLimitSeconds || raidRecord.endTime === raidRecord.enterTime
+        ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
+        : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
   }
@@ -162,7 +162,7 @@ export class RaidService {
   async getStatusFromRedis(): Promise<RaidStatus> {
     const getRedis: RaidStatus = await this.cacheManager.get('raidStatus');
 
-    const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null };
+    const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
   }

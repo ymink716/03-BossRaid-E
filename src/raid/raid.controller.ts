@@ -35,6 +35,7 @@ export class RaidController {
     try {
       // 레디스 조회시 결과
       const redisResult: RaidStatus = await this.raidService.getStatusFromRedis();
+
       return redisResult;
     } catch (error) {
       console.log(error);

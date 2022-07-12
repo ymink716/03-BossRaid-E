@@ -33,5 +33,6 @@ services:
 
   redis-server:
     image: redis:latest
+    # command: ['exec -it redis-cli', 'WATCH raidStatus']
     ports:
       - 6379:6379
