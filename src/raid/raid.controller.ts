@@ -1,29 +1,17 @@
-import {
-  Body,
-  CACHE_MANAGER,
-  Controller,
-  Get,
-  Inject,
-  Patch,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, CACHE_MANAGER, Controller, Get, Inject, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { Cache } from 'cache-manager';
 import { RaidEndDto } from './dto/raidEnd.dto';
-import { raidStatus } from './dto/raidStatusDto';
-import { RaidRecord } from './entities/raid.entity';
+import { RaidStatus } from './dto/raidStatus.dto';
 import { RaidService } from './raid.service';
 import { CreateRaidDTO } from './dto/createRaid.dto';
-import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
+
 import { GetUser } from 'src/common/getUserDecorator';
 import { User } from 'src/user/entities/user.entity';
-import {
-  ApiBearerAuth,
-  ApiCreatedResponse,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 import { MSG } from 'src/common/response.enum';
+import { RequestRaidDto } from './dto/requestRaid.dto';
 
 @ApiBearerAuth('access_token')
 @UseGuards(JwtAuthGuard)
@@ -36,43 +24,25 @@ export class RaidController {
     private readonly cacheManager: Cache,
   ) {}
 
+  /* 
+    작성자 : 김태영
+  */
+  @ApiCreatedResponse({
+    status: MSG.getRaidStatus.code,
+    description: MSG.getRaidStatus.msg,
+  })
   @Get()
   async getRaidStatus() {
-    let result: raidStatus;
-
     try {
-      const redis: RaidRecord = await this.cacheManager.get('raidRecord');
+      // 레디스 조회시 결과
+      const redisResult: RaidStatus = await this.raidService.getStatusFromRedis();
 
-      if (redis) {
-        result = {
-          canEnter: false,
-          enteredUserId: redis.user.id,
-        };
-        return result;
-      } else {
-        result = {
-          canEnter: true,
-          enteredUserId: null,
-        };
-        return result;
-      }
+      return redisResult;
     } catch (error) {
       console.log(error);
-      const db = await this.raidService.fetchRecentRaidRecord();
-
-      if (db) {
-        result = {
-          canEnter: false,
-          enteredUserId: db.user.id,
-        };
-        return result;
-      } else {
-        result = {
-          canEnter: true,
-          enteredUserId: null,
-        };
-        return result;
-      }
+      //레디스 에러 시 DB에서의 상태 조회 결과
+      const dbResult = await this.raidService.getStatusFromDB();
+      return dbResult;
     }
   }
 
@@ -81,12 +51,11 @@ export class RaidController {
     description: MSG.enterBossRaid.msg,
   })
   @Post('enter')
-  async enterRaid(@Body() createRaidDto: CreateRaidDTO, @GetUser() user: User) {
-    const result = await this.raidService.enterBossRaid(createRaidDto, user);
-
+  async enterRaid(@Body() createRaidDto: CreateRaidDTO) {
+    const result = await this.raidService.enterBossRaid(createRaidDto);
     // 캐시에 항목 추가
-    await this.cacheManager.set('raidRecord', result, { ttl: 180 });
-    return this.cacheManager.get('raidRecord');
+
+    return result;
   }
 
   /* 
@@ -97,4 +66,14 @@ export class RaidController {
   endRaid(@Body() raidEndDto: RaidEndDto) {
     return this.raidService.endRaid(raidEndDto);
   }
+
+  /* 
+    작성자 : 염하늘
+  */
+  //  @ApiBody({ type: RequestRaidDto })
+    @Post('topRankerList')
+    topRankerList(@Body() dto: RequestRaidDto) {
+      const result = this.raidService.rankRaid(dto);
+      return result
+    }
 }
