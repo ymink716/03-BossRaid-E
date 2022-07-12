@@ -75,16 +75,14 @@ export class UserService {
       }
 
       const { totalScore, raids } = users[0];
+      const bossRaidHistory = raids.map(({ id: raidRecordId, score, enterTime, endTime }) => ({
+        raidRecordId,
+        score,
+        enterTime,
+        endTime,
+      }));
 
-      const userInfo: UserInfoDTO = {
-        totalScore,
-        bossRaidHistory: raids.map(({ id: raidRecordId, score, enterTime, endTime }) => ({
-          raidRecordId,
-          score,
-          enterTime,
-          endTime,
-        })),
-      };
+      const userInfo: UserInfoDTO = { totalScore, bossRaidHistory };
 
       console.log(userInfo);
       // const user = await this.userRepository
