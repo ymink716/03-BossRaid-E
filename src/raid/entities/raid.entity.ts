@@ -31,6 +31,9 @@ export class RaidRecord {
   @Column()
   level: number;
 
+  @Column()
+  userId: number;
+
   @ManyToOne(() => User, (user) => user.raids, {
     nullable: false,
     createForeignKeyConstraints: false,
