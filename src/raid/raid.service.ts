@@ -17,6 +17,9 @@ import { CreateRaidDTO } from './dto/createRaid.dto';
 import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
 import { RaidStatus } from './dto/raidStatus.dto';
 import { Cache } from 'cache-manager';
+import { RequestRaidDto } from './dto/requestRaid.dto';
+import { RankingInfo } from './rankingInfo.interface';
+import { ResponseRaidDto } from './dto/responseRaid.dto';
 
 const moment = require('moment');
 require('moment-timezone');
@@ -59,7 +62,7 @@ export class RaidService {
   */
   // 레디스 사용 부분 추가 필요
   // - 레이드 종료 시 보스레이드 canEnter=true
-  // - 레이드 종료 시 랭킹에 업뎃
+  // - 레이드 종료 시 ㅂ랭킹에 업뎃
   // axios 에러 추가 필요
   // 센트리로 에러 관리 추가 필요
   // StaticData 웹서버 캐싱?
@@ -165,5 +168,48 @@ export class RaidService {
     const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null };
 
     return result;
+  }
+
+  /* 작성자 : 염하늘
+    - raid 랭킹 조회 로직 구현
+  */
+  
+  async rankRaid(dto : RequestRaidDto) {
+
+    // 1유저 조회
+    const findUser: User = await this.userRepository.findOne({
+        where: {
+          id:  dto.userId
+        },
+      });
+      if (!findUser) {
+        throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
+      }
+      // 모든 유저 조회
+
+      const response = await axios({
+        url: process.env.STATIC_DATA_URL,
+        method: 'GET',
+      });
+
+      const bossRaid = response.data.bossRaids[0];
+
+      console.log(111111,bossRaid.levels)
+
+      const myInfo : RankingInfo = {
+        ranking: 1,
+        userId: findUser.id,
+        totalScore : findUser.totalScore
+      }
+
+      const res : RankingInfo = {
+      ranking:bossRaid.ranking,
+      userId:7, 
+     totalScore : bossRaid
+      }
+
+      const result  = ResponseRaidDto.usersInfo(myInfo,res)
+
+    return  result
   }
 }

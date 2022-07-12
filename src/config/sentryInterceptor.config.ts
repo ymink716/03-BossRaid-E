@@ -7,7 +7,6 @@ import {
 import { Observable, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import * as Sentry from '@sentry/minimal';
-import { HttpErrorType } from 'src/common/httpError.type';
 
 @Injectable()
 export class SentryInterceptor implements NestInterceptor{
@@ -16,13 +15,10 @@ export class SentryInterceptor implements NestInterceptor{
             catchError((error) => {
                 Sentry.captureException(error);
 
-                let errorType = HttpErrorType[status];
-                errorType = errorType ?? 'UNEXPECTED_ERROR';
-
                 return of({
-                    statusCode: error.status,
-                    errorType,
-                    message: error.response.message,
+                    statusCode: error.response.statusCode || 400,
+                    errorType : error.response.error || 'Unexpected Error',
+                    message: error.response.message || 'Unexpected Error MSG',
                 });
             }),
         );

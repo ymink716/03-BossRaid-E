@@ -11,6 +11,7 @@ import { User } from 'src/user/entities/user.entity';
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 import { MSG } from 'src/common/response.enum';
+import { RequestRaidDto } from './dto/requestRaid.dto';
 
 @ApiBearerAuth('access_token')
 @UseGuards(JwtAuthGuard)
@@ -65,4 +66,14 @@ export class RaidController {
   endRaid(@Body() raidEndDto: RaidEndDto) {
     return this.raidService.endRaid(raidEndDto);
   }
+
+  /* 
+    작성자 : 염하늘
+  */
+  //  @ApiBody({ type: RequestRaidDto })
+    @Post('topRankerList')
+    topRankerList(@Body() dto: RequestRaidDto) {
+      const result = this.raidService.rankRaid(dto);
+      return result
+    }
 }
