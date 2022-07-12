@@ -82,27 +82,51 @@ export class RaidService {
     작성자 : 김용민
   */
   // 레디스 사용 부분 추가 필요
-  // - 레이드 종료 시 보스레이드 canEnter=true
-  // - 레이드 종료 시 ㅂ랭킹에 업뎃
-  // axios 에러 추가 필요
+  // - 3분이 지났는데 종료 요청이 들어오지 않은 경우 레디스는 어떻게??
   // 센트리로 에러 관리 추가 필요
-  // StaticData 웹서버 캐싱?
+  // 에러 타입화 추가 필요
+  // 과제 예시에는 성공 시 body가 없음.. 레이드 시간초과 시 에러??
   async endRaid(raidEndDto: RaidEndDto) {
     const { userId, raidRecordId } = raidEndDto;
-
+    const setRedis: RaidStatus = { 
+      canEnter: true, 
+      enteredUserId: null, 
+      raidRecordId: null 
+    };
+    let raidRedisStatus: RaidStatus;
+    
     try {
+      raidRedisStatus = await this.cacheManager.get('raidStatus');
+      // raidRadisStatus가 없다면 레이드 제한시간이 지난 경우
+      if (!raidRedisStatus) {
+        await this.cacheManager.set('raidStatus', setRedis, { ttl: 0 });
+
+        const record: RaidRecord = await this.raidRecordRepository.findOne({
+          where: { id: raidRecordId }
+        });
+
+        record.score = 0;
+        await this.raidRecordRepository.save(record);
+        return;
+      }
+
+      // 레이드 종료인데 입장 가능 상태 or 사용자 불일치 or 레이드 기록 불일치
+      if (raidRedisStatus.canEnter 
+        || raidRedisStatus.enteredUserId !== userId 
+        || raidRedisStatus.raidRecordId !== raidRecordId) {
+        throw new BadRequestException('레이드 상태와 일치하지 않은 요청입니다.');
+      } 
+
       const record: RaidRecord = await this.raidRecordRepository.findOne({
         where: {
           id: raidRecordId,
         },
         relations: ['user'],
       });
-
+      // RaidRecord, User 일치하지 않으면 예외처리
       if (!record) {
         throw new NotFoundException('해당 레이드 기록을 찾을 수 없습니다.');
       }
-
-      // 저장된 userId와 raidRecordId 일치하지 않다면 예외 처리
       if (record.user.id !== userId) {
         throw new ForbiddenException('해당 사용자의 레이드 기록이 아닙니다.');
       }
@@ -113,16 +137,6 @@ export class RaidService {
       });
       const bossRaid = response.data.bossRaids[0];
 
-      // 시작한 시간으로부터 레이드 제한시간이 지났다면 예외 처리
-      const now = moment();
-      const startedAt = moment(record.enterTime);
-      console.log(now, startedAt);
-      const duration = moment.duration(now.diff(startedAt)).asSeconds();
-      if (duration > bossRaid.bossRaidLimitSeconds) {
-        throw new BadRequestException('레이드 제한시간이 지났습니다.');
-      }
-      record.endTime = now.toDate();
-
       // 레벨에 따른 스코어 반영
       for (const l of bossRaid.levels) {
         if (l.level === record.level) {
@@ -132,19 +146,17 @@ export class RaidService {
       }
 
       const user: User = await this.userRepository.findOne({
-        where: {
-          id: userId,
-        },
+        where: { id: userId },
       });
+      user.totalScore = user.totalScore + record.score;
 
-      if (!user) {
-        throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
-      }
-
-      //user.total = user.total + record.score;
-
+      // 레디스 레이드 상태 초기화
+      await this.cacheManager.set('raidStatus', setRedis, { ttl: 0 });
+    
+      // 레디스 레이드 랭킹 업뎃
+      await this.cacheManager.set(`${userId}`, user.totalScore, { ttl: 0 });
+      
       // raidRecord transaction.. manager +
-
       await this.raidRecordRepository.save(record);
       await this.userRepository.save(user);
 
@@ -176,10 +188,8 @@ export class RaidService {
     const duration = moment.duration(now.diff(startedAt)).asSeconds();
 
     const result: RaidStatus =
-
       duration <= bossRaid.bossRaidLimitSeconds || raidRecord.endTime === raidRecord.enterTime
         ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
-
         : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;

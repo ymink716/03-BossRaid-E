@@ -16,14 +16,14 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe());
 
   // Sentry
-  if (process.env.NODE_ENV == 'dev') {
-    Sentry.init({
-      dsn: process.env.SENTRY_DSN
-    });
-    app.useGlobalInterceptors(new SentryInterceptor());
-  } else {
-    app.useGlobalInterceptors(new HttpResponseInterceptor());
-  }
+  // if (process.env.NODE_ENV == 'dev') {
+  //   Sentry.init({
+  //     dsn: process.env.SENTRY_DSN
+  //   });
+  //   app.useGlobalInterceptors(new SentryInterceptor());
+  // } else {
+  //   app.useGlobalInterceptors(new HttpResponseInterceptor());
+  // }
 
 
   // Swagger API Docs
