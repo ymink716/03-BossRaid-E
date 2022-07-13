@@ -23,7 +23,7 @@ import { RequestRaidDto } from './dto/requestRaid.dto';
 import { RankingInfo } from './rankingInfo.interface';
 import { ResponseRaidDto } from './dto/responseRaid.dto';
 import { ErrorType } from 'src/common/error.enum';
-import AxiosHelper from './axiousHelper';
+import AxiosHelper from './axiosHelper';
 
 const moment = require('moment');
 require('moment-timezone');
