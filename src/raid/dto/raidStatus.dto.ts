@@ -9,7 +9,7 @@ export class RaidStatus {
   enteredUserId: number;
 
   @ApiProperty({ description: '레이드 기록'})
-  raidRecord: RaidRecord;
+  raidRecord?: RaidRecord;
 }
 
 export const defaultRaidStatus: RaidStatus = {
