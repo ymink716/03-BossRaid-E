@@ -67,7 +67,7 @@ export class RaidService {
 
       const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId, raidRecordId };
       await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
-
+      
       const enterOption: EnterBossRaidOption = {
         isEntered: true,
         raidRecordId,
@@ -94,7 +94,7 @@ export class RaidService {
       raidRecordId: null 
     };
     let raidRedisStatus: RaidStatus;
-    
+
     try {
       raidRedisStatus = await this.cacheManager.get('raidStatus');
       // raidRadisStatus가 없다면 레이드 제한시간이 지난 경우
@@ -152,8 +152,10 @@ export class RaidService {
 
       // 레디스 레이드 상태 초기화
       await this.cacheManager.set('raidStatus', setRedis, { ttl: 0 });
-    
+
       // 레디스 레이드 랭킹 업뎃
+      const ranking = await this.cacheManager.get('ranking');
+      const scoreList = [ ]
       await this.cacheManager.set(`${userId}`, user.totalScore, { ttl: 0 });
       
       // raidRecord transaction.. manager +
@@ -197,7 +199,7 @@ export class RaidService {
 
   async getStatusFromRedis(): Promise<RaidStatus> {
     const getRedis: RaidStatus = await this.cacheManager.get('raidStatus');
-
+    
     const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
