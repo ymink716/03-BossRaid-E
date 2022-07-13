@@ -12,21 +12,17 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { User } from 'src/user/entities/user.entity';
-import { Repository } from 'typeorm';
+import { getConnection, Repository } from 'typeorm';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
 import { CreateRaidDTO } from './dto/createRaid.dto';
 import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
-import { RaidStatus } from './dto/raidStatus.dto';
+import { defaultRaidStatus, RaidStatus } from './dto/raidStatus.dto';
 import { Cache } from 'cache-manager';
 import { RequestRaidDto } from './dto/requestRaid.dto';
 import { RankingInfo } from './rankingInfo.interface';
 import { ResponseRaidDto } from './dto/responseRaid.dto';
 import { ErrorType } from 'src/common/error.enum';
-
-const moment = require('moment');
-require('moment-timezone');
-moment.tz.setDefault('Asia/Seoul');
 
 @Injectable()
 export class RaidService {
@@ -83,52 +79,28 @@ export class RaidService {
   }
   /* 
     작성자 : 김용민
+      - 레이드 종료에 관한 비지니스 로직 구현
   */
-  // 레디스 사용 부분 추가 필요
-  // - 3분이 지났는데 종료 요청이 들어오지 않은 경우 레디스는 어떻게??
   // 센트리로 에러 관리 추가 필요
   // 에러 타입화 추가 필요
-  // 과제 예시에는 성공 시 body가 없음.. 레이드 시간초과 시 에러??
+  // 유저 랭킹 업데이트 추가 필요
   async endRaid(raidEndDto: RaidEndDto) {
     const { userId, raidRecordId } = raidEndDto;
-    const setRedis: RaidStatus = {
-      canEnter: true,
-      enteredUserId: null,
-    };
-    let raidRedisStatus: RaidStatus;
+    let raidStatus: RaidStatus;
+
 
     try {
-      raidRedisStatus = await this.cacheManager.get('raidStatus');
-      // raidRadisStatus가 없다면 레이드 제한시간이 지난 경우
-      if (!raidRedisStatus) {
-        await this.cacheManager.set('raidStatus', setRedis, { ttl: 0 });
-
-        const record: RaidRecord = await this.raidRecordRepository.findOne({
-          where: { id: raidRecordId },
-        });
-
-        record.score = 0;
-        await this.raidRecordRepository.save(record);
-        return;
+      raidStatus = await this.cacheManager.get('raidStatus');
+      // raidStatus가 없다면 레이드가 진행 중이지 않거나 시간 초과
+      if (!raidStatus) {
+        await this.cacheManager.set('raidStatus', defaultRaidStatus, { ttl: 0 });
+        throw new NotFoundException('진행 중인 레이드 정보가 없습니다.');
       }
 
       // 레이드 종료인데 입장 가능 상태 or 사용자 불일치 or 레이드 기록 불일치
-      if (raidRedisStatus.canEnter || raidRedisStatus.enteredUserId !== userId) {
-        throw new BadRequestException('레이드 상태와 일치하지 않은 요청입니다.');
-      }
+      if (raidStatus.canEnter || raidStatus.enteredUserId !== userId || raidStatus.raidRecord.id !== raidRecordId) {
+        throw new BadRequestException('진행 중인 레이드 정보와 일치하지 않습니다.');
 
-      const record: RaidRecord = await this.raidRecordRepository.findOne({
-        where: {
-          id: raidRecordId,
-        },
-        relations: ['user'],
-      });
-      // RaidRecord, User 일치하지 않으면 예외처리
-      if (!record) {
-        throw new NotFoundException('해당 레이드 기록을 찾을 수 없습니다.');
-      }
-      if (record.user.id !== userId) {
-        throw new ForbiddenException('해당 사용자의 레이드 기록이 아닙니다.');
       }
 
       const response = await axios({
@@ -137,35 +109,31 @@ export class RaidService {
       });
       const bossRaid = response.data.bossRaids[0];
 
-      // 레벨에 따른 스코어 반영
+      const record: RaidRecord = raidStatus.raidRecord;
       for (const l of bossRaid.levels) {
         if (l.level === record.level) {
-          record.score = l.score;
+          record.score = l.score;  // 보스 레벨에 따른 스코어 반영
           break;
         }
       }
 
-      const user: User = await this.userRepository.findOne({
-        where: { id: userId },
-      });
-      user.totalScore = user.totalScore + record.score;
+      const user: User = await this.userRepository.findOne({ where: { id: userId } });
+      if (!user) {
+        throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
+      }
+      user.totalScore = user.totalScore + record.score;  // 유저의 totalScore 변경
 
-      // 레디스 레이드 상태 초기화
-      await this.cacheManager.set('raidStatus', setRedis, { ttl: 0 });
-
-      // 레디스 레이드 랭킹 업뎃
-      const ranking = await this.cacheManager.get('ranking');
-      const scoreList = [];
-      await this.cacheManager.set(`${userId}`, user.totalScore, { ttl: 0 });
-
-      // raidRecord transaction.. manager +
-      await this.raidRecordRepository.save(record);
-      await this.userRepository.save(user);
-
+      // 레이드 상태 DB에 저장
+      await this.saveRaidRecord(user, record);
+      // 레이드 상태 초기화
+      await this.cacheManager.set('raidStatus', defaultRaidStatus, { ttl: 0 });
+      // 유저 랭킹 업데이트
+      await this.updateUserRanking(userId, user.totalScore);
+      
       return record;
     } catch (error) {
       console.error(error);
-    }
+    } 
   }
 
   /* 
@@ -263,5 +231,40 @@ export class RaidService {
     const result = ResponseRaidDto.usersInfo(myInfo, res);
 
     return result;
+  }
+
+  /* 
+    작성자 : 김용민
+      - 레이드 종료 시 레이드 기록과 유저 정보를 트랜잭션으로 DB에 저장
+  */
+  async saveRaidRecord(user: User, record: RaidRecord): Promise<void> {
+    const queryRunner = getConnection().createQueryRunner();
+
+    try {
+      queryRunner.startTransaction();
+      await this.raidRecordRepository.save(record);
+      await this.userRepository.save(user);
+      queryRunner.commitTransaction();
+    } catch (error) {
+      queryRunner.rollbackTransaction();
+    } finally {
+      queryRunner.release();
+    }
+  }
+
+  /* 
+    작성자 : 김용민
+      - 레이드 종료 시 유저 랭킹을 레디스에 업데이트
+  */
+  async updateUserRanking(userId: number, totalScore: number): Promise<void> {
+    let ranking;
+    ranking = await this.cacheManager.get('ranking');
+  
+    if (!ranking) {
+      ranking = new Map();
+    }
+
+    ranking.set(`${userId}`, totalScore);
+    await this.cacheManager.set('ranking', ranking, { ttl: 0 })
   }
 }
