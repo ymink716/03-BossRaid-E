@@ -23,6 +23,8 @@ import { RequestRaidDto } from './dto/requestRaid.dto';
 import { RankingInfo } from './rankingInfo.interface';
 import { ResponseRaidDto } from './dto/responseRaid.dto';
 import { ErrorType } from 'src/common/error.enum';
+import AxiosHelper from './axiosHelper';
+import moment from 'moment';
 
 @Injectable()
 export class RaidService {
@@ -36,8 +38,8 @@ export class RaidService {
   ) {}
 
   /* 
-    작성자 : 박신영
-  */
+      작성자 : 박신영
+    */
   async enterBossRaid(createRaidDto: CreateRaidDTO): Promise<EnterBossRaidOption> {
     // 레이드 상태 조회
     let redisResult: RaidStatus;
@@ -137,8 +139,8 @@ export class RaidService {
   }
 
   /* 
-    작성자 : 김태영
-  */
+      작성자 : 김태영
+    */
   async getStatusFromDB(): Promise<RaidStatus> {
     let raidRecord;
     try {
@@ -192,45 +194,40 @@ export class RaidService {
   }
 
   /* 작성자 : 염하늘
-    - raid 랭킹 조회 로직 구현
-  */
+      - raid 랭킹 조회 로직 구현
+    */
 
   async rankRaid(dto: RequestRaidDto) {
-    // 1유저 조회
-    const findUser: User = await this.userRepository.findOne({
-      where: {
-        id: dto.userId,
-      },
-    });
-    if (!findUser) {
-      throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
-    }
-    // 모든 유저 조회
+    
+    const user = await this.existUser(dto);
+    console.log(111, user);
 
-    const response = await axios({
-      url: process.env.STATIC_DATA_URL,
-      method: 'GET',
-    });
-
+    const response = await AxiosHelper.getInstance();
     const bossRaid = response.data.bossRaids[0];
-
-    console.log(111111, bossRaid.levels);
+    console.log(222, bossRaid);
 
     const myInfo: RankingInfo = {
       ranking: 1,
-      userId: findUser.id,
-      totalScore: findUser.totalScore,
+      userId: user.id,
+      totalScore: user.totalScore,
     };
-
-    const res: RankingInfo = {
-      ranking: bossRaid.ranking,
-      userId: 7,
-      totalScore: bossRaid,
-    };
-
-    const result = ResponseRaidDto.usersInfo(myInfo, res);
-
-    return result;
+    return myInfo;
+  }
+  /*
+     작성자 : 염하늘
+     - user 조회 로직 함수화
+  */
+  public async existUser(requestDto: CreateRaidDTO | RaidEndDto | RequestRaidDto) {
+    const existUser: User = await this.userRepository.findOne({
+      where: {
+        id: requestDto.userId,
+      },
+    });
+    if (!existUser) {
+      throw new NotFoundException(ErrorType.userNotFound.msg);
+    } else {
+      return existUser;
+    }
   }
 
   /* 
