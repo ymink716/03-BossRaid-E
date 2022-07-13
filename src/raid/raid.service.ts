@@ -173,11 +173,12 @@ export class RaidService {
     }
   }
 
-  /* 
-    작성자 : 김태영
-  */
+  /**
+   * @작성자 김태영
+   * @description 데이터베이스에서 최근 레이드 기록을 통해 레이드 상태 정보 불러오기
+   */
   async getStatusFromDB(): Promise<RaidStatus> {
-    let raidRecord;
+    let raidRecord: RaidRecord;
     try {
       raidRecord = await this.raidRecordRepository
         .createQueryBuilder('record')
@@ -214,6 +215,10 @@ export class RaidService {
     return result;
   }
 
+  /**
+   * @작성자 김태영
+   * @description 레디스에서 레이드 상태 정보 불러오기
+   */
   async getStatusFromRedis(): Promise<RaidStatus> {
     try {
       const getRedis: RaidRecord = await this.cacheManager.get('raidStatus');
