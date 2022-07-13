@@ -15,16 +15,15 @@ async function bootstrap() {
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe());
 
-  Sentry
+  Sentry;
   if (process.env.NODE_ENV == 'dev') {
     Sentry.init({
-      dsn: process.env.SENTRY_DSN
+      dsn: process.env.SENTRY_DSN,
     });
     app.useGlobalInterceptors(new SentryInterceptor());
   } else {
     app.useGlobalInterceptors(new HttpResponseInterceptor());
   }
-
 
   // Swagger API Docs
   const documentOptions = new BaseAPIDocumentation().initializeOptions();
