@@ -20,6 +20,9 @@ import { Cache } from 'cache-manager';
 import { RequestRaidDto } from './dto/requestRaid.dto';
 import { RankingInfo } from './rankingInfo.interface';
 import { ResponseRaidDto } from './dto/responseRaid.dto';
+import AxiosInstance from './axiousHelper';
+import AxiousHelper from './axiousHelper';
+import { ErrorType } from 'src/common/error.enum';
 
 const moment = require('moment');
 require('moment-timezone');
@@ -67,7 +70,7 @@ export class RaidService {
 
       const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId, raidRecordId };
       await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
-      
+
       const enterOption: EnterBossRaidOption = {
         isEntered: true,
         raidRecordId,
@@ -88,10 +91,10 @@ export class RaidService {
   // 과제 예시에는 성공 시 body가 없음.. 레이드 시간초과 시 에러??
   async endRaid(raidEndDto: RaidEndDto) {
     const { userId, raidRecordId } = raidEndDto;
-    const setRedis: RaidStatus = { 
-      canEnter: true, 
-      enteredUserId: null, 
-      raidRecordId: null 
+    const setRedis: RaidStatus = {
+      canEnter: true,
+      enteredUserId: null,
+      raidRecordId: null,
     };
     let raidRedisStatus: RaidStatus;
 
@@ -102,7 +105,7 @@ export class RaidService {
         await this.cacheManager.set('raidStatus', setRedis, { ttl: 0 });
 
         const record: RaidRecord = await this.raidRecordRepository.findOne({
-          where: { id: raidRecordId }
+          where: { id: raidRecordId },
         });
 
         record.score = 0;
@@ -111,11 +114,13 @@ export class RaidService {
       }
 
       // 레이드 종료인데 입장 가능 상태 or 사용자 불일치 or 레이드 기록 불일치
-      if (raidRedisStatus.canEnter 
-        || raidRedisStatus.enteredUserId !== userId 
-        || raidRedisStatus.raidRecordId !== raidRecordId) {
+      if (
+        raidRedisStatus.canEnter ||
+        raidRedisStatus.enteredUserId !== userId ||
+        raidRedisStatus.raidRecordId !== raidRecordId
+      ) {
         throw new BadRequestException('레이드 상태와 일치하지 않은 요청입니다.');
-      } 
+      }
 
       const record: RaidRecord = await this.raidRecordRepository.findOne({
         where: {
@@ -155,9 +160,9 @@ export class RaidService {
 
       // 레디스 레이드 랭킹 업뎃
       const ranking = await this.cacheManager.get('ranking');
-      const scoreList = [ ]
+      const scoreList = [];
       await this.cacheManager.set(`${userId}`, user.totalScore, { ttl: 0 });
-      
+
       // raidRecord transaction.. manager +
       await this.raidRecordRepository.save(record);
       await this.userRepository.save(user);
@@ -199,7 +204,7 @@ export class RaidService {
 
   async getStatusFromRedis(): Promise<RaidStatus> {
     const getRedis: RaidStatus = await this.cacheManager.get('raidStatus');
-    
+
     const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
@@ -208,43 +213,37 @@ export class RaidService {
   /* 작성자 : 염하늘
     - raid 랭킹 조회 로직 구현
   */
-  
-  async rankRaid(dto : RequestRaidDto) {
 
-    // 1유저 조회
-    const findUser: User = await this.userRepository.findOne({
-        where: {
-          id:  dto.userId
-        },
-      });
-      if (!findUser) {
-        throw new NotFoundException('해당 사용자를 찾을 수 없습니다.');
-      }
-      // 모든 유저 조회
+  async rankRaid(dto: RequestRaidDto) {
+    //유저 조회
+    const user = await this.existUser(dto);
+    console.log(111, user);
 
-      const response = await axios({
-        url: process.env.STATIC_DATA_URL,
-        method: 'GET',
-      });
+    const response = await AxiousHelper.getInstance();
+    const bossRaid = response.data.bossRaids[0];
+    console.log(222, bossRaid);
 
-      const bossRaid = response.data.bossRaids[0];
-
-      console.log(111111,bossRaid.levels)
-
-      const myInfo : RankingInfo = {
-        ranking: 1,
-        userId: findUser.id,
-        totalScore : findUser.totalScore
-      }
-
-      const res : RankingInfo = {
-      ranking:bossRaid.ranking,
-      userId:7, 
-     totalScore : bossRaid
-      }
-
-      const result  = ResponseRaidDto.usersInfo(myInfo,res)
-
-    return  result
+    const myInfo: RankingInfo = {
+      ranking: 1,
+      userId: user.id,
+      totalScore: user.totalScore,
+    };
+    return myInfo;
+  }
+  /*
+     작성자 : 염하늘
+     - user 조회 로직 함수화
+  */
+  public async existUser(requestDto: CreateRaidDTO | RaidEndDto | RequestRaidDto) {
+    const existUser: User = await this.userRepository.findOne({
+      where: {
+        id: requestDto.userId,
+      },
+    });
+    if (!existUser) {
+      throw new NotFoundException(ErrorType.userNotFound.msg);
+    } else {
+      return existUser;
+    }
   }
 }
