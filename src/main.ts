@@ -15,7 +15,7 @@ async function bootstrap() {
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe());
 
-  // Sentry
+  Sentry
   if (process.env.NODE_ENV == 'dev') {
     Sentry.init({
       dsn: process.env.SENTRY_DSN
