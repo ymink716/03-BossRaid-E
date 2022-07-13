@@ -52,7 +52,7 @@ export class RaidService {
     }
     // 레이드 시작 불가능
 
-    if (!redisResult.canEnter || !dbResult.canEnter) {
+    if (!redisResult?.canEnter) {
       throw new ForbiddenException('보스 레이드가 실행 중입니다.');
     }
     // 레이드 시작 가능
@@ -64,7 +64,7 @@ export class RaidService {
       const result = await this.raidRecordRepository.insert(newBossRaid);
       const raidRecordId = result.identifiers[0].id;
 
-      const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId, raidRecordId };
+      const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId };
       await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
 
       const enterOption: EnterBossRaidOption = {
@@ -88,6 +88,7 @@ export class RaidService {
     const { userId, raidRecordId } = raidEndDto;
     let raidStatus: RaidStatus;
 
+
     try {
       raidStatus = await this.cacheManager.get('raidStatus');
       // raidStatus가 없다면 레이드가 진행 중이지 않거나 시간 초과
@@ -99,6 +100,7 @@ export class RaidService {
       // 레이드 종료인데 입장 가능 상태 or 사용자 불일치 or 레이드 기록 불일치
       if (raidStatus.canEnter || raidStatus.enteredUserId !== userId || raidStatus.raidRecord.id !== raidRecordId) {
         throw new BadRequestException('진행 중인 레이드 정보와 일치하지 않습니다.');
+
       }
 
       const response = await axios({
