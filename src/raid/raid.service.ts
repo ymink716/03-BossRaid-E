@@ -5,6 +5,8 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  InternalServerErrorException,
+  MisdirectedException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -20,9 +22,8 @@ import { Cache } from 'cache-manager';
 import { RequestRaidDto } from './dto/requestRaid.dto';
 import { RankingInfo } from './rankingInfo.interface';
 import { ResponseRaidDto } from './dto/responseRaid.dto';
-import AxiosInstance from './axiousHelper';
-import AxiousHelper from './axiousHelper';
 import { ErrorType } from 'src/common/error.enum';
+import AxiosHelper from './axiousHelper';
 
 const moment = require('moment');
 require('moment-timezone');
@@ -40,8 +41,8 @@ export class RaidService {
   ) {}
 
   /* 
-    작성자 : 박신영
-  */
+      작성자 : 박신영
+    */
   async enterBossRaid(createRaidDto: CreateRaidDTO): Promise<EnterBossRaidOption> {
     // 레이드 상태 조회
     let redisResult: RaidStatus;
@@ -56,7 +57,7 @@ export class RaidService {
     }
     // 레이드 시작 불가능
 
-    if (!redisResult.canEnter || !dbResult.canEnter) {
+    if (!redisResult?.canEnter) {
       throw new ForbiddenException('보스 레이드가 실행 중입니다.');
     }
     // 레이드 시작 가능
@@ -68,7 +69,7 @@ export class RaidService {
       const result = await this.raidRecordRepository.insert(newBossRaid);
       const raidRecordId = result.identifiers[0].id;
 
-      const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId, raidRecordId };
+      const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId };
       await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
 
       const enterOption: EnterBossRaidOption = {
@@ -82,8 +83,8 @@ export class RaidService {
     }
   }
   /* 
-    작성자 : 김용민
-  */
+      작성자 : 김용민
+    */
   // 레디스 사용 부분 추가 필요
   // - 3분이 지났는데 종료 요청이 들어오지 않은 경우 레디스는 어떻게??
   // 센트리로 에러 관리 추가 필요
@@ -94,7 +95,6 @@ export class RaidService {
     const setRedis: RaidStatus = {
       canEnter: true,
       enteredUserId: null,
-      raidRecordId: null,
     };
     let raidRedisStatus: RaidStatus;
 
@@ -114,11 +114,7 @@ export class RaidService {
       }
 
       // 레이드 종료인데 입장 가능 상태 or 사용자 불일치 or 레이드 기록 불일치
-      if (
-        raidRedisStatus.canEnter ||
-        raidRedisStatus.enteredUserId !== userId ||
-        raidRedisStatus.raidRecordId !== raidRecordId
-      ) {
+      if (raidRedisStatus.canEnter || raidRedisStatus.enteredUserId !== userId) {
         throw new BadRequestException('레이드 상태와 일치하지 않은 요청입니다.');
       }
 
@@ -174,52 +170,70 @@ export class RaidService {
   }
 
   /* 
-    작성자 : 김태영
-  */
+      작성자 : 김태영
+    */
   async getStatusFromDB(): Promise<RaidStatus> {
-    const raidRecord = await this.raidRecordRepository
-      .createQueryBuilder('record')
-      .leftJoinAndSelect('record.user', 'user')
-      .orderBy('enterTime', 'DESC')
-      .getOne();
+    let raidRecord;
+    try {
+      raidRecord = await this.raidRecordRepository
+        .createQueryBuilder('record')
+        .leftJoinAndSelect('record.user', 'user')
+        .orderBy('enterTime', 'DESC')
+        .getOne();
+    } catch (error) {
+      throw new InternalServerErrorException(ErrorType.databaseServerError.msg);
+    }
 
-    const response = await axios({
-      url: process.env.STATIC_DATA_URL,
-      method: 'GET',
-    });
-    const bossRaid = response.data.bossRaids[0];
+    if (!raidRecord) throw new NotFoundException(ErrorType.raidRecordNotFound.msg);
+
+    let bossRaid;
+    try {
+      const response = await axios({
+        url: process.env.STATIC_DATA_URL,
+        method: 'GET',
+      });
+      bossRaid = response.data.bossRaids[0];
+    } catch (error) {
+      throw new MisdirectedException(ErrorType.axiosError.msg);
+    }
 
     const now = moment();
     const startedAt = moment(raidRecord.enterTime);
-    console.log(now, startedAt);
+
     const duration = moment.duration(now.diff(startedAt)).asSeconds();
 
     const result: RaidStatus =
-      duration <= bossRaid.bossRaidLimitSeconds || raidRecord.endTime === raidRecord.enterTime
-        ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
-        : { canEnter: true, enteredUserId: null, raidRecordId: null };
+      duration < bossRaid.bossRaidLimitSeconds
+        ? { canEnter: false, enteredUserId: raidRecord.user.id }
+        : { canEnter: true, enteredUserId: null };
 
     return result;
   }
 
   async getStatusFromRedis(): Promise<RaidStatus> {
-    const getRedis: RaidStatus = await this.cacheManager.get('raidStatus');
+    try {
+      const getRedis: RaidRecord = await this.cacheManager.get('raidStatus');
 
-    const result: RaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
+      const result: RaidStatus = getRedis
+        ? { canEnter: false, enteredUserId: getRedis.userId }
+        : { canEnter: true, enteredUserId: null };
 
-    return result;
+      return result;
+    } catch (error) {
+      throw new InternalServerErrorException(ErrorType.redisError.msg);
+    }
   }
 
   /* 작성자 : 염하늘
-    - raid 랭킹 조회 로직 구현
-  */
+      - raid 랭킹 조회 로직 구현
+    */
 
   async rankRaid(dto: RequestRaidDto) {
-    //유저 조회
+    
     const user = await this.existUser(dto);
     console.log(111, user);
 
-    const response = await AxiousHelper.getInstance();
+    const response = await AxiosHelper.getInstance();
     const bossRaid = response.data.bossRaids[0];
     console.log(222, bossRaid);
 

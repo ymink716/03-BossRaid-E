@@ -6,8 +6,6 @@ import { RaidStatus } from './dto/raidStatus.dto';
 import { RaidService } from './raid.service';
 import { CreateRaidDTO } from './dto/createRaid.dto';
 
-import { GetUser } from 'src/common/getUserDecorator';
-import { User } from 'src/user/entities/user.entity';
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 import { MSG } from 'src/common/response.enum';
@@ -32,7 +30,7 @@ export class RaidController {
     description: MSG.getRaidStatus.msg,
   })
   @Get()
-  async getRaidStatus() {
+  async getRaidStatus(): Promise<RaidStatus> {
     try {
       // 레디스 조회시 결과
       const redisResult: RaidStatus = await this.raidService.getStatusFromRedis();
@@ -71,9 +69,9 @@ export class RaidController {
     작성자 : 염하늘
   */
   //  @ApiBody({ type: RequestRaidDto })
-    @Post('topRankerList')
-    topRankerList(@Body() dto: RequestRaidDto) {
-      const result = this.raidService.rankRaid(dto);
-      return result
-    }
+  @Post('topRankerList')
+  topRankerList(@Body() dto: RequestRaidDto) {
+    const result = this.raidService.rankRaid(dto);
+    return result;
+  }
 }
