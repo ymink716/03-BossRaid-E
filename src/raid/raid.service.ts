@@ -257,20 +257,15 @@ export class RaidService {
     작성자 : 김용민
       - 레이드 상태가 유효한 값인지 확인
   */
-  async checkRaidStatus(raidStatus: RaidStatus, userId: number, raidRecordId: number) {
-    try {
-      // raidStatus가 없다면 레이드가 진행 중이지 않거나 시간 초과
-      if (!raidStatus) {
-        await this.cacheManager.set('raidStatus', defaultRaidStatus, { ttl: 0 });
-        throw new NotFoundException(ErrorType.raidStatusNotFound);
-      }
+  checkRaidStatus(raidStatus: RaidStatus, userId: number, raidRecordId: number) {
+    // raidStatus가 없다면 레이드가 진행 중이지 않거나 시간 초과
+    if (!raidStatus) {
+      throw new NotFoundException(ErrorType.raidStatusNotFound);
+    }
     
-      // 사용자 불일치 or 레이드 기록 불일치
-      if (raidStatus.enteredUserId !== userId || raidStatus.raidRecordId !== raidRecordId) {
-        throw new BadRequestException(ErrorType.raidStatusBadRequest);
-      }
-    } catch (error) {
-      throw new InternalServerErrorException(ErrorType.redisError.msg); 
+    // 사용자 불일치 or 레이드 기록 불일치
+    if (raidStatus.enteredUserId !== userId || raidStatus.raidRecordId !== raidRecordId) {
+      throw new BadRequestException(ErrorType.raidStatusBadRequest);
     }
   }
 
