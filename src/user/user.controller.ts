@@ -33,12 +33,7 @@ import { Cache } from 'cache-manager';
 @ApiTags('user')
 @Controller('user')
 export class UserController {
-  constructor(
-    private readonly userService: UserService,
-    private readonly authService: AuthService,
-    @Inject(CACHE_MANAGER)
-    cacheManager: Cache,
-  ) {}
+  constructor(private readonly userService: UserService, private readonly authService: AuthService) {}
 
   /* 
     - 사용자를 생성하여 회원가입 처리
