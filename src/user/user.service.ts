@@ -54,7 +54,7 @@ export class UserService {
           throw new ConflictException(ErrorType.nicknameExist.msg);
         }
       } else {
-        throw new InternalServerErrorException();
+        throw new InternalServerErrorException(ErrorType.serverError.msg);
       }
     }
   }
