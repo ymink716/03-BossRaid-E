@@ -27,6 +27,8 @@ import { Queue, Job } from 'bull';
 import AxiosHelper from './axiosHelper';
 import moment from 'moment';
 import { UserService } from 'src/user/user.service';
+import { InjectRedis } from '@nestjs-modules/ioredis';
+import Redis from 'ioredis';
 
 // require('moment-timezone');
 // moment.tz.setDefault('Asia/Seoul');
@@ -44,6 +46,7 @@ export class RaidService {
     private userService: UserService,
     @InjectQueue('playerQueue')
     private playerQueue: Queue,
+    @InjectRedis() private readonly redis: Redis,
   ) {}
 
   /* 
@@ -143,7 +146,7 @@ export class RaidService {
       raidStatus = await this.cacheManager.get('raidStatus');
       // 레이드 상태가 유효한 값인지 확인
       await this.checkRaidStatus(raidStatus, userId, raidRecordId);
-      
+
       // S3에서 보스레이드 정보 가져오기 (캐싱 이용하면 수정)
       const response = await AxiosHelper.getInstance();
       const bossRaid = response.data.bossRaids[0];
@@ -158,16 +161,16 @@ export class RaidService {
       }
 
       const user: User = await this.userService.getUserById(userId);
-      user.totalScore = user.totalScore + record.score;  // 유저의 totalScore 변경
+      user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
 
-      await this.saveRaidRecord(user, record);  // 레이드 기록 DB에 저장
-      await this.cacheManager.del('raidStatus');  // 진행 중인 보스레이드 레디스에서 삭제
-      await this.updateUserRanking(userId, user.totalScore);  // 유저 랭킹 업데이트
-      
-      return record;  // 과제에서는 응답 리스폰스 없음 (테스트 후 수정)
+      await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
+      await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
+      await this.updateUserRanking(userId, record.score); // 유저 랭킹 업데이트
+
+      return record; // 과제에서는 응답 리스폰스 없음 (테스트 후 수정)
     } catch (error) {
       throw new InternalServerErrorException(ErrorType.serverError.msg);
-    } 
+    }
   }
 
   /**
@@ -237,61 +240,42 @@ export class RaidService {
   async rankRaid(dto: RequestRaidDto) {
     const user = await this.existUser(dto);
 
-    await this.staticDataCaching()
+    await this.staticDataCaching();
 
     // const response = await AxiosHelper.getInstance();
     // const bossRaid = response.data.bossRaids[0];
+
+    const topRankerList = await this.getTopRankerList();
 
     const myInfo: IRankingInfo = {
       ranking: 1, // 변경
       userId: user.id,
       totalScore: user.totalScore,
     };
-    return myInfo;
+    return topRankerList;
   }
 
   /* 작성자 : 염하늘
   static data redis caching
   */
   public async staticDataCaching() {
-
     // S3 static data 가져오기
     const staticData = await AxiosHelper.getInstance();
     const bossRaid = staticData.data.bossRaids[0];
     console.log(111, bossRaid);
 
-    await this.cacheManager.set(
-      'bossRaidLimitSeconds',
-      bossRaid.bossRaidLimitSeconds,
-    )
+    await this.cacheManager.set('bossRaidLimitSeconds', bossRaid.bossRaidLimitSeconds);
 
     await this.cacheManager.set('level_0', bossRaid.levels[0].score);
     await this.cacheManager.set('level_1', bossRaid.levels[1].score);
     await this.cacheManager.set('level_2', bossRaid.levels[2].score);
 
-       //   console log
-        console.log(await this.cacheManager.get('bossRaidLimitSeconds'));
-        console.log(await this.cacheManager.get('level_0'));
-        console.log(await this.cacheManager.get('level_1'));
-        console.log(await this.cacheManager.get('level_2'));
+    //   console log
+    console.log(await this.cacheManager.get('bossRaidLimitSeconds'));
+    console.log(await this.cacheManager.get('level_0'));
+    console.log(await this.cacheManager.get('level_1'));
+    console.log(await this.cacheManager.get('level_2'));
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   /*
      작성자 : 염하늘
@@ -308,6 +292,32 @@ export class RaidService {
     } else {
       return existUser;
     }
+  }
+
+  /**
+   * @작성자 김태영, 염하늘
+   * @description 랭크 탑 10 리스트 불러오기
+   */
+  async getTopRankerList(): Promise<IRankingInfo[]> {
+    const member = await this.redis.zrevrange('Raid-Rank', 0, 9);
+
+    // 해당 total 랭킹 리스트를 들고온다. 0 1 2 3 4
+
+    const result: IRankingInfo[] = await Promise.all(
+      member.map(async el => {
+        const score = await this.redis.zscore('Raid-Rank', el);
+
+        const sameScoreList = await this.redis.zrevrangebyscore('Raid-Rank', score, score);
+
+        // 랭킹 리스트의 맨 처음 Key의 랭킹을 가져온다. 0
+        const firstKey = sameScoreList[0];
+        const rank = await this.redis.zrevrank('Raid-Rank', firstKey);
+
+        const result: IRankingInfo = { ranking: rank + 1, userId: Number(el), totalScore: Number(score) };
+        return result;
+      }),
+    );
+    return result;
   }
 
   /* 
@@ -333,19 +343,11 @@ export class RaidService {
     작성자 : 김용민
       - 레이드 종료 시 유저 랭킹을 레디스에 업데이트
   */
-  async updateUserRanking(userId: number, totalScore: number): Promise<void> {
+  async updateUserRanking(userId: number, score: number): Promise<void> {
     try {
-      let ranking;
-      ranking = await this.cacheManager.get('ranking');
-    
-      if (!ranking) {
-        ranking = new Map();
-      }
-  
-      ranking.set(`${userId}`, totalScore);
-      await this.cacheManager.set('ranking', ranking, { ttl: 0 })
+      await this.redis.zincrby('Raid-Rank', score, userId);
     } catch (error) {
-      throw new InternalServerErrorException(ErrorType.redisError.msg); 
+      throw new InternalServerErrorException(ErrorType.redisError.msg);
     }
   }
 
@@ -358,7 +360,7 @@ export class RaidService {
     if (!raidStatus) {
       throw new NotFoundException(ErrorType.raidStatusNotFound);
     }
-    
+
     // 사용자 불일치 or 레이드 기록 불일치
     if (raidStatus.enteredUserId !== userId || raidStatus.raidRecordId !== raidRecordId) {
       throw new BadRequestException(ErrorType.raidStatusBadRequest);
@@ -366,7 +368,7 @@ export class RaidService {
   }
 
   async getRaidRecordById(raidStatusId: number) {
-    const record = await this.raidRecordRepository.findOne({ where: { id: raidStatusId }});
+    const record = await this.raidRecordRepository.findOne({ where: { id: raidStatusId } });
 
     if (!record) {
       throw new NotFoundException(ErrorType.raidRecordNotFound);
