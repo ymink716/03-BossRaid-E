@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { LoginDto } from 'src/user/dto/login.dto';
 import { UserService } from 'src/user/user.service';
@@ -7,10 +6,9 @@ import { compare } from 'bcryptjs';
 import { User } from 'src/user/entities/user.entity';
 import { defaultTokenOption } from 'src/common/tokenOption.interface';
 
-/* 
-  작성자 : 박신영, 김용민
-    - JWT 생성 및 회원 인증 서비스를 구축합니다.
-    - 전반적인 코드 리팩토링
+/**
+ * @작성자 박신영, 김용민
+  * @description JWT 생성 및 회원 인증 서비스를 구축
 */
 @Injectable()
 export class AuthService {
