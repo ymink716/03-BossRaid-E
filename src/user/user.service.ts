@@ -46,9 +46,13 @@ export class UserService {
     try {
       await this.userRepository.save(user);
       return user;
-    } catch (error) {
-      if (error.errno === 1062) {
-        throw new ConflictException(ErrorType.emailExists.msg);
+    } catch ({ errno, sqlMessage }) {
+      if (errno === 1062) {
+        if (sqlMessage.includes(email)) {
+          throw new ConflictException(ErrorType.emailExist.msg);
+        } else if (sqlMessage.includes(nickname)) {
+          throw new ConflictException(ErrorType.nicknameExist.msg);
+        }
       } else {
         throw new InternalServerErrorException();
       }
