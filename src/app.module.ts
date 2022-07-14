@@ -7,7 +7,6 @@ import { ConfigModule } from '@nestjs/config';
 import * as redisStore from 'cache-manager-redis-store';
 import { RaidModule } from './raid/raid.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
-import { AppController } from './app.controller';
 import type { RedisClientOptions } from 'redis';
 
 @Module({
@@ -46,6 +45,5 @@ import type { RedisClientOptions } from 'redis';
       }),
     }),
   ],
-  controllers: [AppController],
 })
 export class AppModule {}
