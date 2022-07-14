@@ -3,9 +3,12 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import type { RedisClientOptions } from 'redis';
+
 import * as redisStore from 'cache-manager-redis-store';
 import { RaidModule } from './raid/raid.module';
+import { RedisModule } from '@nestjs-modules/ioredis';
+import { AppController } from './app.controller';
+import type { RedisClientOptions } from 'redis';
 
 @Module({
   imports: [
@@ -35,6 +38,14 @@ import { RaidModule } from './raid/raid.module';
       url: process.env.REDIS_URL,
       isGlobal: true,
     }),
+    RedisModule.forRootAsync({
+      useFactory: () => ({
+        config: {
+          url: process.env.REDIS_URL,
+        },
+      }),
+    }),
   ],
+  controllers: [AppController],
 })
 export class AppModule {}
