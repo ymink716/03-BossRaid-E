@@ -32,8 +32,6 @@ import { IRaidStatus } from './raidStatus.interface';
 import { InjectQueue, Processor } from '@nestjs/bull';
 import { Queue } from 'bull';
 
-import { Job } from 'bullmq';
-
 @Injectable()
 @Processor('playerQueue')
 export class RaidService {
