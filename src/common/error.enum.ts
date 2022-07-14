@@ -10,4 +10,6 @@ export const ErrorType = {
   redisError: { code: 500, msg: '레디스 서버에 문제가 발생했습니다. 잠시 후 다시 시도해주세요' },
   databaseServerError: { code: 500, msg: '데이터베이스 서버에 문제가 발생했습니다. 잠시 후 다시 시도해주세요' },
   axiosError: { code: 421, msg: '레이드 정보 json을 불러오지 못했습니다' },
+  raidStatusNotFound: { code: 404, msg: '진행 중인 레이드가 없습니다.'},
+  raidStatusBadRequest: { code: 400, msg: '진행 중인 레이드 정보와 일치하지 않습니다.'},
 };

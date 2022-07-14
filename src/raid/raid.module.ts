@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from 'src/user/entities/user.entity';
+import { UserService } from 'src/user/user.service';
 import { RaidRecord } from './entities/raid.entity';
 import { RaidController } from './raid.controller';
 import { RaidService } from './raid.service';
@@ -26,6 +27,6 @@ import { RaidConsumer } from './raid.consumer';
     }),
   ],
   controllers: [RaidController],
-  providers: [RaidService, RaidConsumer],
+  providers: [RaidService, RaidConsumer, UserService],
 })
 export class RaidModule {}
