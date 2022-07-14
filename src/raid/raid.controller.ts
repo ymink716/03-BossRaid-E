@@ -4,7 +4,7 @@ import { Cache } from 'cache-manager';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidStatus } from './dto/raidStatus.dto';
 import { RaidService } from './raid.service';
-import { CreateRaidDTO } from './dto/createRaid.dto';
+import { CreateRaidDTO } from './dto/raidEnter.dto';
 
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';

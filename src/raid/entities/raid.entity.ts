@@ -1,12 +1,5 @@
 import { User } from 'src/user/entities/user.entity';
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity()
 export class RaidRecord {
@@ -34,7 +27,7 @@ export class RaidRecord {
   @Column()
   userId: number;
 
-  @ManyToOne(() => User, (user) => user.raids, {
+  @ManyToOne(() => User, user => user.raids, {
     nullable: false,
     createForeignKeyConstraints: false,
     onDelete: 'CASCADE',

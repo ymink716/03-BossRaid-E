@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@nestjs/bull": "^0.6.0",
     "@nestjs/common": "^8.4.7",
     "@nestjs/config": "^2.1.0",
     "@nestjs/core": "^8.0.0",
@@ -33,11 +34,13 @@
     "@sentry/minimal": "^6.19.7",
     "@sentry/node": "^7.6.0",
     "@sentry/tracing": "^7.6.0",
+    "@types/bull": "^3.15.8",
     "@types/cookie-parser": "^1.4.3",
     "@types/dotenv": "^8.2.0",
     "@types/passport-jwt": "^3.0.6",
     "axios": "^0.27.2",
     "bcryptjs": "^2.4.3",
+    "bull": "^4.8.4",
     "cache-manager": "^3.6.1",
     "cache-manager-redis-store": "^2.0.0",
     "class-transformer": "^0.5.1",
