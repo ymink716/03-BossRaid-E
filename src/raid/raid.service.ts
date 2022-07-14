@@ -15,7 +15,7 @@ import { User } from 'src/user/entities/user.entity';
 import { getConnection, Repository } from 'typeorm';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
-import { CreateRaidDTO } from './dto/createRaid.dto';
+import { CreateRaidDTO } from './dto/raidEnter.dto';
 import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
 import { defaultRaidStatus, RaidStatus } from './dto/raidStatus.dto';
 import { Cache } from 'cache-manager';
@@ -23,10 +23,17 @@ import { RequestRaidDto } from './dto/requestRaid.dto';
 import { RankingInfo } from './rankingInfo.interface';
 import { ResponseRaidDto } from './dto/responseRaid.dto';
 import { ErrorType } from 'src/common/error.enum';
+import { InjectQueue, Process, Processor } from '@nestjs/bull';
+import { Queue, Job } from 'bull';
+
+const moment = require('moment');
+require('moment-timezone');
+moment.tz.setDefault('Asia/Seoul');
 import AxiosHelper from './axiosHelper';
 import moment from 'moment';
 
 @Injectable()
+@Processor('playerQueue')
 export class RaidService {
   constructor(
     @InjectRepository(RaidRecord)
@@ -35,21 +42,22 @@ export class RaidService {
     private readonly userRepository: Repository<User>,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
+    @InjectQueue('playerQueue')
+    private playerQueue: Queue,
   ) {}
 
   /* 
-      작성자 : 박신영
-    */
+    작성자 : 박신영
+  */
+
   async enterBossRaid(createRaidDto: CreateRaidDTO): Promise<EnterBossRaidOption> {
-    // 레이드 상태 조회
+    // - 레이드 상태 조회
     let redisResult: RaidStatus;
     let dbResult: RaidStatus;
     try {
-      // 레디스 조회시 결과
       redisResult = await this.getStatusFromRedis();
     } catch (error) {
       console.log(error);
-      //레디스 에러 시 DB에서의 상태 조회 결과
       dbResult = await this.getStatusFromDB();
     }
     // 레이드 시작 불가능
@@ -57,21 +65,33 @@ export class RaidService {
     if (!redisResult?.canEnter) {
       throw new ForbiddenException('보스 레이드가 실행 중입니다.');
     }
+
+    // queue에 저장
+    try {
+      const user = await this.addPlayerQueue(createRaidDto);
+      console.log(user);
+    } catch (e) {
+      console.error('E', e);
+      throw new InternalServerErrorException(ErrorType.serverError);
+    }
+
     // 레이드 시작 가능
     try {
       const newBossRaid = this.raidRecordRepository.create({
         ...createRaidDto,
         score: 0,
       });
-      const result = await this.raidRecordRepository.insert(newBossRaid);
-      const raidRecordId = result.identifiers[0].id;
-
-      const setRedis: RaidStatus = { canEnter: false, enteredUserId: createRaidDto.userId };
+      const raidRecord = await this.raidRecordRepository.save(newBossRaid);
+      const setRedis: RaidStatus = {
+        canEnter: false,
+        enteredUserId: createRaidDto.userId,
+        raidRecordId: raidRecord.id,
+      };
       await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
 
       const enterOption: EnterBossRaidOption = {
         isEntered: true,
-        raidRecordId,
+        raidRecordId: newBossRaid.id,
       };
 
       return enterOption;
@@ -79,6 +99,36 @@ export class RaidService {
       console.error(e);
     }
   }
+  /* 
+    작성자 : 박신영
+    - queue에 사용자 추가
+  */
+  async addPlayerQueue(playerData: CreateRaidDTO): Promise<object> {
+    try {
+      const { userId, level } = playerData;
+      const player = await this.playerQueue.add('player', {
+        userId,
+        level,
+      });
+
+      return player;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  /* 
+    작성자 : 박신영
+    - queue 비우기
+  */
+  async emptyPlayerQueue() {
+    try {
+      this.playerQueue.empty();
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
   /* 
     작성자 : 김용민
       - 레이드 종료에 관한 비지니스 로직 구현
@@ -88,7 +138,13 @@ export class RaidService {
   // 유저 랭킹 업데이트 추가 필요
   async endRaid(raidEndDto: RaidEndDto) {
     const { userId, raidRecordId } = raidEndDto;
-    let raidStatus: RaidStatus;
+
+    const setRedis: RaidStatus = {
+      canEnter: true,
+      enteredUserId: null,
+      raidRecordId,
+    };
+    let raidRedisStatus: RaidStatus;
 
     try {
       raidStatus = await this.cacheManager.get('raidStatus');
@@ -172,8 +228,8 @@ export class RaidService {
 
     const result: RaidStatus =
       duration < bossRaid.bossRaidLimitSeconds
-        ? { canEnter: false, enteredUserId: raidRecord.user.id }
-        : { canEnter: true, enteredUserId: null };
+        ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
+        : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
     return result;
   }
@@ -187,8 +243,8 @@ export class RaidService {
       const getRedis: RaidRecord = await this.cacheManager.get('raidStatus');
 
       const result: RaidStatus = getRedis
-        ? { canEnter: false, enteredUserId: getRedis.userId }
-        : { canEnter: true, enteredUserId: null };
+        ? { canEnter: false, enteredUserId: getRedis.userId, raidRecordId: getRedis.id }
+        : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
       return result;
     } catch (error) {

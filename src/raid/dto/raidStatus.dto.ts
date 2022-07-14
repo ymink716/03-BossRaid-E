@@ -8,8 +8,8 @@ export class RaidStatus {
   @ApiProperty({ description: '레이드를 이미 진행중인 유저의 id', example: 1 })
   enteredUserId: number;
 
-  @ApiProperty({ description: '레이드 기록'})
-  raidRecord?: RaidRecord;
+  @ApiProperty({ description: '레이드 레코드 아이디입니다.', example: 1 })
+  raidRecordId: number;
 }
 
 export const defaultRaidStatus: RaidStatus = {
