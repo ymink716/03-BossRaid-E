@@ -17,7 +17,7 @@ import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
 import { RaidEnterDto } from './dto/raidEnter.dto';
 import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
-import { RaidStatus } from './dto/raidStatus.dto';
+import { RaidStatusRes } from './dto/raidStatusRes.dto';
 import { Cache } from 'cache-manager';
 import { TopRankerListDto } from './dto/topRankerList.dto';
 import { IRankingInfo } from './rankingInfo.interface';
@@ -175,6 +175,23 @@ export class RaidService {
 
   /**
    * @작성자 김태영
+   * @description 레디스에서 레이드 상태 정보 불러오기
+   */
+  async getStatusFromRedis(): Promise<IRaidStatus> {
+    try {
+      const getRedis: IRaidStatus = await this.cacheManager.get('raidStatus'); // 레디스에서 레이드 상태 정보 불러오기
+
+      const result: IRaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
+      // 상태 정보가 존재하면 입장가능여부 false로 전달, 존재하지 않으면 입장가능여부 true로 전달
+
+      return result;
+    } catch (error) {
+      throw new InternalServerErrorException(ErrorType.redisError.msg); // 에러시 레디스 에러로 간주합니다
+    }
+  }
+
+  /**
+   * @작성자 김태영
    * @description 데이터베이스에서 최근 레이드 기록을 통해 레이드 상태 정보 불러오기
    */
   async getStatusFromDB(): Promise<IRaidStatus> {
@@ -184,51 +201,31 @@ export class RaidService {
         .createQueryBuilder('record')
         .leftJoinAndSelect('record.user', 'user')
         .orderBy('enterTime', 'DESC')
-        .getOne();
+        .getOne(); // 가장 최근의 레이드 기록을 불러 옵니다
     } catch (error) {
-      throw new InternalServerErrorException(ErrorType.databaseServerError.msg);
+      throw new InternalServerErrorException(ErrorType.databaseServerError.msg); // 에러시 sql 에러
     }
 
-    if (!raidRecord) throw new NotFoundException(ErrorType.raidRecordNotFound.msg);
+    if (!raidRecord) throw new NotFoundException(ErrorType.raidRecordNotFound.msg); // 레이드 레코드 값이 없을 시 에러
 
     let bossRaid;
     try {
-      const response = await axios({
-        url: process.env.STATIC_DATA_URL,
-        method: 'GET',
-      });
-      bossRaid = response.data.bossRaids[0];
+      const response = await AxiosHelper.getInstance();
+      bossRaid = response.data.bossRaids[0]; // static data 불러오기
     } catch (error) {
       throw new MisdirectedException(ErrorType.axiosError.msg);
     }
 
-    const now = moment();
-    const startedAt = moment(raidRecord.enterTime);
+    const now = moment(); // 현재시간
+    const enterTime = moment(raidRecord.enterTime); // 레이드 기록 상의 레이드 시작 시간
 
-    const duration = moment.duration(now.diff(startedAt)).asSeconds();
+    const duration = moment.duration(now.diff(enterTime)).asSeconds(); // moment.js로 현재시간과 레이드 시작시간 간의 차이(초) 계산
 
     const result: IRaidStatus =
-      duration < bossRaid.bossRaidLimitSeconds
+      duration < bossRaid.bossRaidLimitSeconds // 현재시간과 레이드 시작 시간간의 차이가 레이드 제한시간 보다 작을시 레이드가 진행중인 것으로 간주합니다
         ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
-        : { canEnter: true, enteredUserId: null, raidRecordId: null };
-
+        : { canEnter: true, enteredUserId: null, raidRecordId: null }; // 상태 정보가 존재하면 그대로 전달, 존재하지 않으면 입장여부 true로 전달
     return result;
-  }
-
-  /**
-   * @작성자 김태영
-   * @description 레디스에서 레이드 상태 정보 불러오기
-   */
-  async getStatusFromRedis(): Promise<IRaidStatus> {
-    try {
-      const getRedis: IRaidStatus = await this.cacheManager.get('raidStatus');
-
-      const result: IRaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
-
-      return result;
-    } catch (error) {
-      throw new InternalServerErrorException(ErrorType.redisError.msg);
-    }
   }
 
   /**
