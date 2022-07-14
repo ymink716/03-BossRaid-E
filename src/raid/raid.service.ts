@@ -30,6 +30,7 @@ import { UserService } from 'src/user/user.service';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import { IRaidStatus } from './raidStatus.interface';
+import { use } from 'passport';
 
 @Injectable()
 @Processor('playerQueue')
@@ -235,22 +236,25 @@ export class RaidService {
    * @작성자 염하늘
    * @description 레이드 랭킹 조회 로직 구현
    */
-  async rankRaid(dto: TopRankerListDto) {
-    const user = await this.userService.getUserById(dto.userId);
+  async rankRaid(raidRankDto: TopRankerListDto) {
+
+    const user = await this.userService.getUserById(raidRankDto.userId);
 
     await this.staticDataCaching();
 
-    // const response = await AxiosHelper.getInstance();
-    // const bossRaid = response.data.bossRaids[0];
+    const topRankerInfoList = await this.getTopRankerList();
 
-    const topRankerList = await this.getTopRankerList();
-
-    const myInfo: IRankingInfo = {
-      ranking: 1, // 변경
-      userId: user.id,
-      totalScore: user.totalScore,
-    };
-    return topRankerList;
+    let ranking =0;
+    topRankerInfoList.forEach(element => {
+      if (user.id == element.userId)
+        ranking = element.ranking;
+    });
+      const myRankingInfo: IRankingInfo = {
+        ranking: ranking,
+        userId: user.id,
+        totalScore: user.totalScore,
+      };
+      return { topRankerInfoList, myRankingInfo }
   }
 
   /**
@@ -261,19 +265,13 @@ export class RaidService {
     // S3 static data 가져오기
     const staticData = await AxiosHelper.getInstance();
     const bossRaid = staticData.data.bossRaids[0];
-    console.log(111, bossRaid);
+
 
     await this.cacheManager.set('bossRaidLimitSeconds', bossRaid.bossRaidLimitSeconds);
-
     await this.cacheManager.set('level_0', bossRaid.levels[0].score);
     await this.cacheManager.set('level_1', bossRaid.levels[1].score);
     await this.cacheManager.set('level_2', bossRaid.levels[2].score);
 
-    //   console log
-    console.log(await this.cacheManager.get('bossRaidLimitSeconds'));
-    console.log(await this.cacheManager.get('level_0'));
-    console.log(await this.cacheManager.get('level_1'));
-    console.log(await this.cacheManager.get('level_2'));
   }
 
   /**
@@ -282,16 +280,11 @@ export class RaidService {
    */
   async getTopRankerList(): Promise<IRankingInfo[]> {
     const member = await this.redis.zrevrange('Raid-Rank', 0, 9);
-
-    // 해당 total 랭킹 리스트를 들고온다. 0 1 2 3 4
-
-    const result: IRankingInfo[] = await Promise.all(
+    const resultTotal: IRankingInfo[] = await Promise.all(
       member.map(async el => {
+        
         const score = await this.redis.zscore('Raid-Rank', el);
-
         const sameScoreList = await this.redis.zrevrangebyscore('Raid-Rank', score, score);
-
-        // 랭킹 리스트의 맨 처음 Key의 랭킹을 가져온다. 0
         const firstKey = sameScoreList[0];
         const rank = await this.redis.zrevrank('Raid-Rank', firstKey);
 
@@ -299,7 +292,7 @@ export class RaidService {
         return result;
       }),
     );
-    return result;
+    return resultTotal;
   }
 
   /**
