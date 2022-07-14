@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, Max, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber } from 'class-validator';
 
-export class CreateRaidDTO {
+export class RaidEnterDto {
   @ApiProperty({ description: '유저 아이디', example: 1 })
   @IsNumber()
   @IsNotEmpty()
@@ -10,7 +10,5 @@ export class CreateRaidDTO {
   @ApiProperty({ description: '보스 레이드 레벨', example: 1 })
   @IsNumber()
   @IsNotEmpty()
-  // @Min(0)
-  // @Max(2)
   readonly level: number;
 }
