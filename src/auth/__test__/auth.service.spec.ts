@@ -58,13 +58,15 @@ describe('AuthService', () => {
       id: 1,
       email: 'team01@naver.com',
       password: hashedPassword,
+      nickname: 'superteam01',
+      totalScore: 0,
       createdAt: new Date(),
       updatedAt: new Date(),
       hashedRefreshToken: 'string',
-      moneyBooks: [],
-      toJSON() {
-        return classToPlain(this);
-      },
+      raids: [],
+      // toJSON() {
+      //   return classToPlain(this);
+      // },
     };
 
     jest.spyOn(userService, 'getUserByEmail').mockRejectedValue(user);
