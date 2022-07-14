@@ -152,7 +152,7 @@ export class RaidService {
 
       for (const l of bossRaid.levels) {
         if (l.level === record.level) {
-          record.score = l.score;  // 보스 레벨에 따른 스코어 반영
+          record.score = l.score; // 보스 레벨에 따른 스코어 반영
           break;
         }
       }
@@ -170,11 +170,12 @@ export class RaidService {
     } 
   }
 
-  /* 
-      작성자 : 김태영
-    */
+  /**
+   * @작성자 김태영
+   * @description 데이터베이스에서 최근 레이드 기록을 통해 레이드 상태 정보 불러오기
+   */
   async getStatusFromDB(): Promise<RaidStatus> {
-    let raidRecord;
+    let raidRecord: RaidRecord;
     try {
       raidRecord = await this.raidRecordRepository
         .createQueryBuilder('record')
@@ -211,6 +212,10 @@ export class RaidService {
     return result;
   }
 
+  /**
+   * @작성자 김태영
+   * @description 레디스에서 레이드 상태 정보 불러오기
+   */
   async getStatusFromRedis(): Promise<RaidStatus> {
     try {
       const getRedis: RaidRecord = await this.cacheManager.get('raidStatus');
@@ -230,7 +235,6 @@ export class RaidService {
     */
 
   async rankRaid(dto: RequestRaidDto) {
-    
     const user = await this.existUser(dto);
 
     await this.staticDataCaching()
