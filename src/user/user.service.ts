@@ -157,4 +157,14 @@ export class UserService {
       hashedRefreshToken: null,
     });
   }
+
+  async getUserById(userId: number) {
+    const user: User = await this.userRepository.findOne({ where: { id: userId } });
+    
+    if (!user) {
+      throw new NotFoundException(ErrorType.userNotFound.msg);
+    }
+
+    return user;
+  }
 }
