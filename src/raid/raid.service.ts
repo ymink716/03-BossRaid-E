@@ -12,24 +12,27 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { User } from 'src/user/entities/user.entity';
-import { Connection, getConnection, Repository } from 'typeorm';
+import { Connection, Repository } from 'typeorm';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
 import { RaidEnterDto } from './dto/raidEnter.dto';
 import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
-import { RaidStatus } from './dto/raidStatus.dto';
 import { Cache } from 'cache-manager';
 import { TopRankerListDto } from './dto/topRankerList.dto';
 import { IRankingInfo } from './rankingInfo.interface';
 import { ErrorType } from 'src/common/error.enum';
-import { InjectQueue, Process, Processor } from '@nestjs/bull';
-import { Queue, Job } from 'bull';
+
 import AxiosHelper from '../utils/axiosHelper';
 import moment from 'moment';
 import { UserService } from 'src/user/user.service';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import { IRaidStatus } from './raidStatus.interface';
+
+import { InjectQueue, Processor } from '@nestjs/bull';
+import { Queue } from 'bull';
+
+import { Job } from 'bullmq';
 
 @Injectable()
 @Processor('playerQueue')
@@ -48,11 +51,20 @@ export class RaidService {
     private readonly connection: Connection,
   ) {}
 
-  /**
-   * @작성자 박신영
-   * @description 레이드 시작에 관한 비지니스 로직 구현
-   */
-  async enterBossRaid(raidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
+  /* 
+    작성자 : 박신영
+  */
+  async enterBossRaid(RaidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
+    // queue에 보스 레이드를 시작하려는 유저를 넣습니다.
+    let queueData;
+    try {
+      await this.addPlayerQueue(RaidEnterDto);
+      queueData = await this.playerQueue.getJobs(['delayed'], 0, 0, false);
+      console.log(queueData);
+    } catch (e) {
+      throw new InternalServerErrorException(ErrorType.bullError);
+    }
+
     // - 레이드 상태 조회
     let redisResult: IRaidStatus;
     let dbResult: IRaidStatus;
@@ -60,25 +72,24 @@ export class RaidService {
       redisResult = await this.getStatusFromRedis();
       console.log(redisResult);
     } catch (error) {
-      console.log(error);
       dbResult = await this.getStatusFromDB();
     }
     // 레이드 시작 불가능
-
     if (!redisResult?.canEnter) {
       throw new ForbiddenException('보스 레이드가 실행 중입니다.');
     }
 
-    // queue에 저장
+    // 레이드 생성
+    const { userId, level } = queueData[0].data;
     try {
-      const user = await this.addPlayerQueue(raidEnterDto);
-      console.log(user);
+      const raidData = await this.startBossRaid({ userId, level });
+      return raidData;
     } catch (e) {
-      console.error('E', e);
-      throw new InternalServerErrorException(ErrorType.serverError);
+      throw new InternalServerErrorException(ErrorType.redisError);
     }
+  }
 
-    // 레이드 시작 가능
+  async startBossRaid(raidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
     try {
       const user = await this.userRepository.findOne({ where: { id: raidEnterDto.userId } });
       const newBossRaid = this.raidRecordRepository.create({
@@ -102,37 +113,28 @@ export class RaidService {
 
       return enterOption;
     } catch (e) {
-      console.error(e);
+      throw new InternalServerErrorException(ErrorType.redisError);
     }
   }
 
-  /**
-   * @작성자 박신영
-   * @description queue에 사용자 추가
-   */
-  async addPlayerQueue(playerData: RaidEnterDto): Promise<object> {
-    try {
-      const { userId, level } = playerData;
-      const player = await this.playerQueue.add('player', {
-        userId,
-        level,
-      });
+  /* 
+    작성자 : 박신영
+    - 2. Producer
+    - queue에 userId와 level을 추가합니다. (큐에 추가한 데이터를 Job이라고 합니다)
+    - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다. 
+    - option은 지연(생성 시점 부터 작업을 실행할 시기), 시도(작업 실패 시 재시도 횟수)와 같은 옵션 등이 있습니다. 
+  */
 
+  async addPlayerQueue(playerData: RaidEnterDto) {
+    try {
+      const player = await this.playerQueue.add('player', playerData, {
+        removeOnComplete: true,
+        removeOnFail: true,
+        delay: 1,
+      });
       return player;
     } catch (e) {
-      console.error(e);
-    }
-  }
-
-  /**
-   * @작성자 박신영
-   * @description queue 비우기
-   */
-  async emptyPlayerQueue() {
-    try {
-      this.playerQueue.empty();
-    } catch (e) {
-      console.log(e);
+      throw new InternalServerErrorException(ErrorType.serverError);
     }
   }
 
@@ -165,7 +167,6 @@ export class RaidService {
       user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
 
       await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
-
       await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
       await this.updateUserRanking(userId, record.score); // 유저 랭킹 업데이트
     } catch (error) {
