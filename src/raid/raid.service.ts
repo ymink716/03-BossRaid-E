@@ -30,7 +30,6 @@ import { UserService } from 'src/user/user.service';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import { IRaidStatus } from './raidStatus.interface';
-import { use } from 'passport';
 
 @Injectable()
 @Processor('playerQueue')
