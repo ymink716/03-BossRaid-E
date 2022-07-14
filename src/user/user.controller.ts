@@ -25,18 +25,15 @@ import { GetUser } from 'src/common/getUserDecorator';
 import { MSG } from 'src/common/response.enum';
 import { defaultTokenOption } from 'src/common/tokenOption.interface';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
-import { Cache } from 'cache-manager';
 
-/* 
-  작성자 : 박신영, 김용민
-*/
 @ApiTags('user')
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService, private readonly authService: AuthService) {}
 
-  /* 
-    - 사용자를 생성하여 회원가입 처리
+  /**
+   * @작성자 김용민
+   * @description 사용자를 생성하여 회원가입 처리하는 컨트롤러
   */
   @Post('')
   @ApiBody({ type: CreateUserDTO })
@@ -48,9 +45,9 @@ export class UserController {
   }
 
   /**
-   * 작성자 : 김지유
-   * 유저 정보 조회
-   */
+   * @작성자 김지유
+   * @description 유저 정보 조회
+  */
   @ApiBearerAuth('access_token')
   @UseGuards(JwtAuthGuard)
   @Get('/:userId')
@@ -61,8 +58,9 @@ export class UserController {
     return UserResponse.response(result, MSG.getUser.code, MSG.getUser.msg);
   }
 
-  /* 
-    - access token, resfresh token 발급하여 로그인 처리
+  /**
+   * @작성자 박신영
+   * @description access token, resfresh token 발급하여 로그인 처리
   */
   @ApiBody({ type: LoginDto })
   @ApiCreatedResponse({ description: MSG.loginUser.msg, type: UserResponse })
@@ -79,8 +77,9 @@ export class UserController {
     return UserResponse.response(result, MSG.loginUser.code, MSG.loginUser.msg);
   }
 
-  /* 
-    - 토큰을 제거하여 로그아웃 기능 구현
+  /**
+   * @작성자 박신영
+   * @description 토큰을 제거하여 로그아웃 기능 구현
   */
   @ApiBearerAuth('access_token')
   @ApiCreatedResponse({ description: '성공' })
@@ -98,8 +97,9 @@ export class UserController {
     return result;
   }
 
-  /* 
-    - 리프레시 토큰으로 액세스 토큰 재요청
+  /**
+   * @작성자 박신영
+   * @description 리프레시 토큰으로 액세스 토큰 재요청
   */
   @UseGuards(JwtRefreshGuard)
   @ApiBearerAuth('access_token')

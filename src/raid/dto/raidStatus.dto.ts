@@ -11,8 +11,3 @@ export class RaidStatus {
   raidRecordId: number;
 }
 
-export const defaultRaidStatus: RaidStatus = {
-  canEnter: true,
-  enteredUserId: null,
-  raidRecordId: null,
-};

@@ -4,11 +4,10 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { User } from 'src/user/entities/user.entity';
 import { UserService } from 'src/user/user.service';
 
-/* 
-  작성자 : 김용민
-   - passport jwt strategy를 구체화
+/**
+  * @작성자 김용민
+  * @description passport jwt strategy를 구체화
 */
-
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(private userService: UserService) {
