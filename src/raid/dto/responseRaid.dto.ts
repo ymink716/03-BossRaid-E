@@ -1,9 +1,9 @@
-import { RankingInfo } from "../rankingInfo.interface"
+import { IRankingInfo } from "../rankingInfo.interface"
 
 export class ResponseRaidDto {
 
-    topRankerInfoList: RankingInfo[]
-    myRankingInfo: RankingInfo  
+    topRankerInfoList: IRankingInfo[]
+    myRankingInfo: IRankingInfo  
 
         
   public static usersInfo(a: any, b: any) {

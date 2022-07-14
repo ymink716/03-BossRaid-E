@@ -20,8 +20,7 @@ import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
 import { defaultRaidStatus, RaidStatus } from './dto/raidStatus.dto';
 import { Cache } from 'cache-manager';
 import { RequestRaidDto } from './dto/requestRaid.dto';
-import { RankingInfo } from './rankingInfo.interface';
-import { ResponseRaidDto } from './dto/responseRaid.dto';
+import { IRankingInfo } from './rankingInfo.interface';
 import { ErrorType } from 'src/common/error.enum';
 import { InjectQueue, Process, Processor } from '@nestjs/bull';
 import { Queue, Job } from 'bull';
@@ -233,19 +232,63 @@ export class RaidService {
   async rankRaid(dto: RequestRaidDto) {
     
     const user = await this.existUser(dto);
-    console.log(111, user);
 
-    const response = await AxiosHelper.getInstance();
-    const bossRaid = response.data.bossRaids[0];
-    console.log(222, bossRaid);
+    await this.staticDataCaching()
 
-    const myInfo: RankingInfo = {
-      ranking: 1,
+    // const response = await AxiosHelper.getInstance();
+    // const bossRaid = response.data.bossRaids[0];
+
+    const myInfo: IRankingInfo = {
+      ranking: 1, // 변경
       userId: user.id,
       totalScore: user.totalScore,
     };
     return myInfo;
   }
+
+  /* 작성자 : 염하늘
+  static data redis caching
+  */
+  public async staticDataCaching() {
+
+    // S3 static data 가져오기
+    const staticData = await AxiosHelper.getInstance();
+    const bossRaid = staticData.data.bossRaids[0];
+    console.log(111, bossRaid);
+
+    await this.cacheManager.set(
+      'bossRaidLimitSeconds',
+      bossRaid.bossRaidLimitSeconds,
+    )
+
+    await this.cacheManager.set('level_0', bossRaid.levels[0].score);
+    await this.cacheManager.set('level_1', bossRaid.levels[1].score);
+    await this.cacheManager.set('level_2', bossRaid.levels[2].score);
+
+       //   console log
+        console.log(await this.cacheManager.get('bossRaidLimitSeconds'));
+        console.log(await this.cacheManager.get('level_0'));
+        console.log(await this.cacheManager.get('level_1'));
+        console.log(await this.cacheManager.get('level_2'));
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   /*
      작성자 : 염하늘
      - user 조회 로직 함수화

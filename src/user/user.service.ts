@@ -13,6 +13,7 @@ import * as bcrypt from 'bcryptjs';
 import { compare } from 'bcryptjs';
 import { ErrorType } from 'src/common/error.enum';
 import { BossRaidRecord, UserInfoDTO } from './dto/userInfo.dto';
+import { SentryError } from '@sentry/utils';
 
 /* 
   작성자 : 김용민, 박신영
