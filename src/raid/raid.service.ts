@@ -90,7 +90,7 @@ export class RaidService {
   async endRaid(raidEndDto: RaidEndDto) {
     const { userId, raidRecordId } = raidEndDto;
     let raidStatus: RaidStatus;
-
+    console.log(this.cacheManager.store);
     try {
       raidStatus = await this.cacheManager.get('raidStatus');
       // 레이드 상태가 유효한 값인지 확인
@@ -113,7 +113,7 @@ export class RaidService {
       user.totalScore = user.totalScore + record.score;  // 유저의 totalScore 변경
 
       await this.saveRaidRecord(user, record);  // 레이드 기록 DB에 저장
-      await this.cacheManager.set('raidStatus', defaultRaidStatus, { ttl: 0 });  // 레디스 레이드 상태 초기화
+      await this.cacheManager.del('raidStatus');  // 진행 중인 보스레이드 레디스에서 삭제
       await this.updateUserRanking(userId, user.totalScore);  // 유저 랭킹 업데이트
       
       return record;  // 과제에서는 응답 리스폰스 없음 (테스트 후 수정)
@@ -265,8 +265,8 @@ export class RaidService {
         throw new NotFoundException(ErrorType.raidStatusNotFound);
       }
     
-      // 레이드 진행 중인데 입장 가능 상태 or 사용자 불일치 or 레이드 기록 불일치
-      if (raidStatus.canEnter || raidStatus.enteredUserId !== userId || raidStatus.raidRecordId !== raidRecordId) {
+      // 사용자 불일치 or 레이드 기록 불일치
+      if (raidStatus.enteredUserId !== userId || raidStatus.raidRecordId !== raidRecordId) {
         throw new BadRequestException(ErrorType.raidStatusBadRequest);
       }
     } catch (error) {
