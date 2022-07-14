@@ -17,7 +17,7 @@ services:
     image: mysql:5.7
     restart: always
     environment:
-      # MYSQL_DATABASE: 'boss-raid'
+      MYSQL_DATABASE: 'boss-raid'
       MYSQL_ROOT_PASSWORD: '2222'
       MYSQL_TCP_PORT: 3308
       TZ: 'Asia/Seoul'

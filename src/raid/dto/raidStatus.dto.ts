@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { RaidRecord } from '../entities/raid.entity';
 
 export class RaidStatus {
   @ApiProperty({ description: '레이드 입장가능 여부', example: true })
@@ -10,3 +11,9 @@ export class RaidStatus {
   @ApiProperty({ description: '레이드 레코드 아이디입니다.', example: 1 })
   raidRecordId: number;
 }
+
+export const defaultRaidStatus: RaidStatus = {
+  canEnter: true,
+  enteredUserId: null,
+  raidRecord: null,
+};
