@@ -10,9 +10,6 @@ services:
       - ./src:/boss-raid/src
     ports:
       - 3000:3000
-      depends_on:
-        - redis-server
-        - database-server
 
   database-server:
     platform: linux/x86_64 # 윈도우 환경에 설치된 도커를 쓰신다면 이부분을 제외해주세요!
