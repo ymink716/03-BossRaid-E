@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./env/.env:/boss-raid/env/.env
+      - ./env/.env:/boss-raid/.env
       - ./src:/boss-raid/src
     ports:
       - 3000:3000

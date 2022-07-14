@@ -143,7 +143,7 @@ export class RaidService {
       raidStatus = await this.cacheManager.get('raidStatus');
       // 레이드 상태가 유효한 값인지 확인
       await this.checkRaidStatus(raidStatus, userId, raidRecordId);
-      
+
       // S3에서 보스레이드 정보 가져오기 (캐싱 이용하면 수정)
       const response = await AxiosHelper.getInstance();
       const bossRaid = response.data.bossRaids[0];
@@ -158,16 +158,16 @@ export class RaidService {
       }
 
       const user: User = await this.userService.getUserById(userId);
-      user.totalScore = user.totalScore + record.score;  // 유저의 totalScore 변경
+      user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
 
-      await this.saveRaidRecord(user, record);  // 레이드 기록 DB에 저장
-      await this.cacheManager.del('raidStatus');  // 진행 중인 보스레이드 레디스에서 삭제
-      await this.updateUserRanking(userId, user.totalScore);  // 유저 랭킹 업데이트
-      
-      return record;  // 과제에서는 응답 리스폰스 없음 (테스트 후 수정)
+      await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
+      await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
+      await this.updateUserRanking(userId, user.totalScore); // 유저 랭킹 업데이트
+
+      return record; // 과제에서는 응답 리스폰스 없음 (테스트 후 수정)
     } catch (error) {
       throw new InternalServerErrorException(ErrorType.serverError.msg);
-    } 
+    }
   }
 
   /**
@@ -237,7 +237,7 @@ export class RaidService {
   async rankRaid(dto: RequestRaidDto) {
     const user = await this.existUser(dto);
 
-    await this.staticDataCaching()
+    await this.staticDataCaching();
 
     // const response = await AxiosHelper.getInstance();
     // const bossRaid = response.data.bossRaids[0];
@@ -254,44 +254,23 @@ export class RaidService {
   static data redis caching
   */
   public async staticDataCaching() {
-
     // S3 static data 가져오기
     const staticData = await AxiosHelper.getInstance();
     const bossRaid = staticData.data.bossRaids[0];
     console.log(111, bossRaid);
 
-    await this.cacheManager.set(
-      'bossRaidLimitSeconds',
-      bossRaid.bossRaidLimitSeconds,
-    )
+    await this.cacheManager.set('bossRaidLimitSeconds', bossRaid.bossRaidLimitSeconds);
 
     await this.cacheManager.set('level_0', bossRaid.levels[0].score);
     await this.cacheManager.set('level_1', bossRaid.levels[1].score);
     await this.cacheManager.set('level_2', bossRaid.levels[2].score);
 
-       //   console log
-        console.log(await this.cacheManager.get('bossRaidLimitSeconds'));
-        console.log(await this.cacheManager.get('level_0'));
-        console.log(await this.cacheManager.get('level_1'));
-        console.log(await this.cacheManager.get('level_2'));
+    //   console log
+    console.log(await this.cacheManager.get('bossRaidLimitSeconds'));
+    console.log(await this.cacheManager.get('level_0'));
+    console.log(await this.cacheManager.get('level_1'));
+    console.log(await this.cacheManager.get('level_2'));
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   /*
      작성자 : 염하늘
@@ -337,15 +316,15 @@ export class RaidService {
     try {
       let ranking;
       ranking = await this.cacheManager.get('ranking');
-    
+
       if (!ranking) {
         ranking = new Map();
       }
-  
+
       ranking.set(`${userId}`, totalScore);
-      await this.cacheManager.set('ranking', ranking, { ttl: 0 })
+      await this.cacheManager.set('ranking', ranking, { ttl: 0 });
     } catch (error) {
-      throw new InternalServerErrorException(ErrorType.redisError.msg); 
+      throw new InternalServerErrorException(ErrorType.redisError.msg);
     }
   }
 
@@ -358,7 +337,7 @@ export class RaidService {
     if (!raidStatus) {
       throw new NotFoundException(ErrorType.raidStatusNotFound);
     }
-    
+
     // 사용자 불일치 or 레이드 기록 불일치
     if (raidStatus.enteredUserId !== userId || raidStatus.raidRecordId !== raidRecordId) {
       throw new BadRequestException(ErrorType.raidStatusBadRequest);
@@ -366,7 +345,7 @@ export class RaidService {
   }
 
   async getRaidRecordById(raidStatusId: number) {
-    const record = await this.raidRecordRepository.findOne({ where: { id: raidStatusId }});
+    const record = await this.raidRecordRepository.findOne({ where: { id: raidStatusId } });
 
     if (!record) {
       throw new NotFoundException(ErrorType.raidRecordNotFound);
