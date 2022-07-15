@@ -2,12 +2,12 @@ import { Body, CACHE_MANAGER, Controller, Get, Inject, Patch, Post, UseGuards } 
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import { Cache } from 'cache-manager';
 import { RaidEndDto } from './dto/raidEnd.dto';
-import { RaidStatus } from './dto/raidStatus.dto';
+import { RaidStatusRes } from './dto/raidStatusRes.dto';
 import { RaidService } from './raid.service';
 import { RaidEnterDto } from './dto/raidEnter.dto';
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
-import { MSG } from 'src/common/response.enum';
+import { MSG } from 'src/utils/responseHandler/response.enum';
 import { TopRankerListDto } from './dto/topRankerList.dto';
 import { IRaidStatus } from './raidStatus.interface';
 
@@ -27,18 +27,18 @@ export class RaidController {
     description: MSG.getRaidStatus.msg,
   })
   @Get()
-  async getRaidStatus(): Promise<RaidStatus> {
+  async getRaidStatus(): Promise<RaidStatusRes> {
     try {
       // 레디스 조회시 결과
       const redisResult: IRaidStatus = await this.raidService.getStatusFromRedis();
-      delete redisResult.raidRecordId;
+      delete redisResult.raidRecordId; // 리턴값에 맞게 레이드 레코드 아이디는 제외합니다
 
       return redisResult;
     } catch (error) {
+      // 레디스 에러 시 DB에서의 상태 조회 결과
       console.log(error);
-      //레디스 에러 시 DB에서의 상태 조회 결과
-      const dbResult = await this.raidService.getStatusFromDB();
-      delete dbResult.raidRecordId;
+      const dbResult: IRaidStatus = await this.raidService.getStatusFromDB();
+      delete dbResult.raidRecordId; // 리턴값에 맞게 레이드 레코드 아이디는 제외합니다
 
       return dbResult;
     }
@@ -76,8 +76,7 @@ export class RaidController {
    */
   @ApiBody({ type: TopRankerListDto })
   @Post('topRankerList')
-  topRankerList(@Body() dto: TopRankerListDto) {
-    const result = this.raidService.rankRaid(dto);
-    return result;
+  topRankerList(@Body() raidRankDto: TopRankerListDto) {
+    return this.raidService.rankRaid(raidRankDto);
   }
 }

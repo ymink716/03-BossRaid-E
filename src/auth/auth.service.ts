@@ -4,7 +4,7 @@ import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { compare } from 'bcryptjs';
 import { User } from 'src/user/entities/user.entity';
-import { defaultTokenOption } from 'src/common/tokenOption.interface';
+import { defaultTokenOption } from 'src/utils/interface/tokenOption.interface';
 
 /**
  * @작성자 박신영, 김용민

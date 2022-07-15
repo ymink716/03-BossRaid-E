@@ -6,7 +6,7 @@ import { RaidRecord } from './entities/raid.entity';
 import { RaidController } from './raid.controller';
 import { RaidService } from './raid.service';
 import { BullModule } from '@nestjs/bull';
-import { RaidConsumer } from '../utils/raid.consumer';
+import { RaidConsumer } from '../utils/helper/raid.consumer';
 
 @Module({
   imports: [
@@ -19,6 +19,11 @@ import { RaidConsumer } from '../utils/raid.consumer';
         },
       }),
     }),
+    /*
+    1. Queue constructor 
+    - queue 생성자로 redis에 유지되는 새 큐를 만듭니다.
+    - queue 생성 시 option을 지정할 수 있습니다. (https://github.com/OptimalBits/bull/blob/master/REFERENCE.md#queue)
+    */
     BullModule.registerQueue({
       name: 'playerQueue',
       defaultJobOptions: {

@@ -11,8 +11,9 @@ import { CreateUserDTO } from './dto/createUser.dto';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 import { compare } from 'bcryptjs';
-import { ErrorType } from 'src/common/error.enum';
-import { UserInfoDTO } from './dto/userInfo.dto';
+import { ErrorType } from 'src/utils/responseHandler/error.enum';
+import { BossRaidRecord, UserInfoDTO } from './dto/userInfo.dto';
+import { SentryError } from '@sentry/utils';
 
 @Injectable()
 export class UserService {
@@ -63,45 +64,34 @@ export class UserService {
    * @description 유저의 id로 레이드 기록 및 총 점수를 조회합니다.
    */
   async getUserInfo(id: number): Promise<UserInfoDTO | undefined> {
-    // version 1. 살짝 무식한 방법...
-    // createQueryBuilder 디깅 후 Refactoring 예정
-    // 유저의 총 점수 및 레이드 기록을 불러온 후, 레이드 기록을 Array.prototype.map() 으로 형태 가공
-    const users = await this.userRepository.find({
-      where: { id },
-      relations: ['raids'],
-      select: ['totalScore'],
-    });
+    try {
+      // version 1. 살짝 무식한 방법...
+      // createQueryBuilder 디깅 후 Refactoring 예정
+      // 유저의 총 점수 및 레이드 기록을 불러온 후, 레이드 기록을 Array.prototype.map() 으로 형태 가공
+      const users = await this.userRepository.find({
+        where: { id },
+        relations: ['raids'],
+        select: ['totalScore'],
+      });
 
-    if (!users.length) {
-      throw new NotFoundException(ErrorType.userNotFound.msg);
+      if (!users.length) {
+        throw new NotFoundException(ErrorType.userNotFound.msg);
+      }
+
+      const { totalScore, raids } = users[0];
+      const bossRaidHistory = raids.map(({ id: raidRecordId, score, enterTime, endTime }) => ({
+        raidRecordId,
+        score,
+        enterTime,
+        endTime,
+      }));
+
+      const userInfo: UserInfoDTO = { totalScore, bossRaidHistory };
+
+      return userInfo;
+    } catch (error) {
+      console.error(error);
     }
-
-    const { totalScore, raids } = users[0];
-    const bossRaidHistory = raids.map(({ id: raidRecordId, score, enterTime, endTime }) => ({
-      raidRecordId,
-      score,
-      enterTime,
-      endTime,
-    }));
-
-    const userInfo: UserInfoDTO = { totalScore, bossRaidHistory };
-
-    // const user = await this.userRepository
-    //   .createQueryBuilder('user')
-    //   .innerJoinAndSelect('user.raids', 'raids')
-    //   .where('user.id = :id', { id })
-    //   .orderBy('raids.endTime', 'ASC')
-    //   .addSelect('user.totalScore', 'totalScore')
-    //   .addSelect('raids.id', 'raidRecordId')
-    //   .addSelect('raids.score', 'score')
-    //   .addSelect('raids.enterTime', 'enterTime')
-    //   .addSelect('raids.endTime', 'endTime')
-    //   .setParameters({})
-    //   .getMany();
-
-    // console.log(user[0].raids);
-
-    return userInfo;
   }
 
   /**
