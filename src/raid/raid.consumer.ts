@@ -1,7 +1,6 @@
-import { InjectQueue, Process, Processor } from '@nestjs/bull';
+import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
-import { Job, Queue } from 'bull';
-import { RaidService } from 'src/raid/raid.service';
+import { Job } from 'bull';
 
 /**
  * @작성자 박신영
