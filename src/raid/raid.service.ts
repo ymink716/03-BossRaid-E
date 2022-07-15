@@ -14,14 +14,6 @@ import { Connection, Repository } from 'typeorm';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
 import { RaidEnterDto } from './dto/raidEnter.dto';
-import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
-
-import { Cache } from 'cache-manager';
-import { TopRankerListDto } from './dto/topRankerList.dto';
-import { IRankingInfo } from './rankingInfo.interface';
-import { ErrorType } from 'src/common/error.enum';
-
-import AxiosHelper from '../utils/axiosHelper';
 import moment from 'moment';
 import { UserService } from 'src/user/user.service';
 import { InjectRedis } from '@nestjs-modules/ioredis';
@@ -270,9 +262,10 @@ export class RaidService {
    * @description 랭크 탑 10 리스트 불러오기
    */
   async getTopRankerList(): Promise<IRankingInfo[]> {
-    const member = await this.redis.zrevrange('Raid-Rank', 0, 9);
+    //const member = await this.redis.zrevrange('Raid-Rank', 0, 9);
+    const allUsers = await this.redis.zrevrange('Rank-Rank',0,-1);
     const resultTotal: IRankingInfo[] = await Promise.all(
-      member.map(async el => {
+      allUsers.map(async el => {
         const score = await this.redis.zscore('Raid-Rank', el);
         const sameScoreList = await this.redis.zrevrangebyscore('Raid-Rank', score, score);
         const firstKey = sameScoreList[0];

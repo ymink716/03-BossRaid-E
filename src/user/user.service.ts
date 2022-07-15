@@ -11,7 +11,7 @@ import { CreateUserDTO } from './dto/createUser.dto';
 import { User } from './entities/user.entity';
 import * as bcrypt from 'bcryptjs';
 import { compare } from 'bcryptjs';
-import { ErrorType } from 'src/common/error.enum';
+import { ErrorType } from 'src/utils/responseHandler/error.enum';
 import { BossRaidRecord, UserInfoDTO } from './dto/userInfo.dto';
 import { SentryError } from '@sentry/utils';
 
