@@ -8,12 +8,12 @@ export abstract class LoginResponseData {
   user: User;
 }
 
-export abstract class SignUpResponse extends BaseResponse {
+export abstract class SignUpResponse {
   @ApiProperty({ description: 'User 식별 고유 번호', example: 1 })
   userId: number;
 }
 
-export abstract class LookupUserResponse extends BaseResponse {
+export abstract class LookupUserResponse {
   @ApiProperty({ description: 'User 레이드 총 점수', example: 30 })
   totalScore: number;
 
