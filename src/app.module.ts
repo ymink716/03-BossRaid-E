@@ -8,6 +8,15 @@ import { RaidModule } from './raid/raid.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
 import type { RedisClientOptions } from 'redis';
 
+console.log({
+  host: process.env.DB_HOST,
+  port: +process.env.DB_PORT,
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_DATABASE,
+  redisUrl: process.env.REDIS_URL,
+});
+
 @Module({
   imports: [
     ConfigModule.forRoot({
