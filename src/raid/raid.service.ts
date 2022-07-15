@@ -49,8 +49,9 @@ export class RaidService {
     private readonly connection: Connection,
   ) {}
 
-  /* 
-    작성자 : 박신영
+  /**
+   * @작성자 박신영
+   * @description 레이드 시작에 관한 비지니스 로직 구현
   */
   async enterBossRaid(raidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
     // queue에 보스 레이드를 시작하려는 유저를 넣습니다.
@@ -115,14 +116,14 @@ export class RaidService {
     }
   }
 
-  /* 
-    작성자 : 박신영
-    - 2. Producer
-    - queue에 userId와 level을 추가합니다. (큐에 추가한 데이터를 Job이라고 합니다)
-    - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다. 
-    - option은 지연(생성 시점 부터 작업을 실행할 시기), 시도(작업 실패 시 재시도 횟수)와 같은 옵션 등이 있습니다. 
+  /**
+   * @작성자 박신영
+   * @description 
+   * - 2. Producer
+   * - queue에 userId와 level을 추가합니다. (큐에 추가한 데이터를 Job이라고 합니다)
+   * - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다. 
+   * - option은 지연(생성 시점 부터 작업을 실행할 시기), 시도(작업 실패 시 재시도 횟수)와 같은 옵션 등이 있습니다.
   */
-
   async addPlayerQueue(playerData: RaidEnterDto) {
     try {
       const player = await this.playerQueue.add('player', playerData, {
@@ -139,7 +140,7 @@ export class RaidService {
   /**
    * @작성자 김용민
    * @description 레이드 종료에 관한 비지니스 로직 구현
-   */
+  */
   async endRaid(raidEndDto: RaidEndDto): Promise<void> {
     const { userId, raidRecordId } = raidEndDto;
     let raidStatus: IRaidStatus;
@@ -294,7 +295,7 @@ export class RaidService {
   }
 
   /**
-   * @작성자 김용민
+   * @작성자 김용민, 김태영
    * @description 레이드 종료 시 레이드 기록과 유저 정보를 트랜잭션으로 DB에 저장
    */
   async saveRaidRecord(user: User, record: RaidRecord): Promise<void> {
@@ -332,12 +333,12 @@ export class RaidService {
   checkRaidStatus(raidStatus: IRaidStatus, userId: number, raidRecordId: number) {
     // raidStatus가 없다면 레이드가 진행 중이지 않거나 시간 초과
     if (!raidStatus) {
-      throw new NotFoundException(ErrorType.raidStatusNotFound);
+      throw new NotFoundException(ErrorType.raidStatusNotFound.msg);
     }
 
     // 사용자 불일치 or 레이드 기록 불일치
     if (raidStatus.enteredUserId !== userId || raidStatus.raidRecordId !== raidRecordId) {
-      throw new BadRequestException(ErrorType.raidStatusBadRequest);
+      throw new BadRequestException(ErrorType.raidStatusBadRequest.msg);
     }
   }
 
@@ -349,7 +350,7 @@ export class RaidService {
     const record = await this.raidRecordRepository.findOne({ where: { id: raidStatusId } });
 
     if (!record) {
-      throw new NotFoundException(ErrorType.raidRecordNotFound);
+      throw new NotFoundException(ErrorType.raidRecordNotFound.msg);
     }
 
     return record;
