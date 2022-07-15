@@ -144,7 +144,7 @@ export class RaidService {
 
     // 레이드 상태가 유효한 값인지 확인
     await this.checkRaidStatus(raidStatus, userId, raidRecordId);
-
+    
     const record: RaidRecord = await this.getRaidRecordById(raidRecordId);
     const score = await this.cacheManager.get(`level_${record.level}`);
     if (!score) {
@@ -248,10 +248,10 @@ export class RaidService {
     const staticData = await AxiosHelper.getInstance();
     const bossRaid = staticData.data.bossRaids[0];
 
-    await this.cacheManager.set('bossRaidLimitSeconds', bossRaid.bossRaidLimitSeconds);
-    await this.cacheManager.set('level_0', bossRaid.levels[0].score);
-    await this.cacheManager.set('level_1', bossRaid.levels[1].score);
-    await this.cacheManager.set('level_2', bossRaid.levels[2].score);
+    await this.cacheManager.set('bossRaidLimitSeconds', bossRaid.bossRaidLimitSeconds, { ttl: 0 });
+    await this.cacheManager.set('level_0', bossRaid.levels[0].score, { ttl: 0 });
+    await this.cacheManager.set('level_1', bossRaid.levels[1].score, { ttl: 0 });
+    await this.cacheManager.set('level_2', bossRaid.levels[2].score, { ttl: 0 });
   }
 
   /**
