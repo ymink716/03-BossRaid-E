@@ -52,15 +52,15 @@ export class RaidService {
   /* 
     작성자 : 박신영
   */
-  async enterBossRaid(RaidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
+  async enterBossRaid(raidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
     // queue에 보스 레이드를 시작하려는 유저를 넣습니다.
     let queueData;
     try {
-      await this.addPlayerQueue(RaidEnterDto);
+      await this.addPlayerQueue(raidEnterDto);
       queueData = await this.playerQueue.getJobs(['delayed'], 0, 0, false);
       console.log(queueData);
     } catch (e) {
-      throw new InternalServerErrorException(ErrorType.bullError);
+      throw new InternalServerErrorException(ErrorType.bullError.msg);
     }
 
     // - 레이드 상태 조회
@@ -74,7 +74,7 @@ export class RaidService {
     }
     // 레이드 시작 불가능
     if (!redisResult?.canEnter) {
-      throw new ForbiddenException('보스 레이드가 실행 중입니다.');
+      throw new ForbiddenException(ErrorType.raidStatusForbidden.msg);
     }
 
     // 레이드 생성
@@ -83,7 +83,7 @@ export class RaidService {
       const raidData = await this.startBossRaid({ userId, level });
       return raidData;
     } catch (e) {
-      throw new InternalServerErrorException(ErrorType.redisError);
+      throw new InternalServerErrorException(ErrorType.redisError.msg);
     }
   }
 
@@ -111,7 +111,7 @@ export class RaidService {
 
       return enterOption;
     } catch (e) {
-      throw new InternalServerErrorException(ErrorType.redisError);
+      throw new InternalServerErrorException(ErrorType.redisError.msg);
     }
   }
 
@@ -132,7 +132,7 @@ export class RaidService {
       });
       return player;
     } catch (e) {
-      throw new InternalServerErrorException(ErrorType.serverError);
+      throw new InternalServerErrorException(ErrorType.serverError.msg);
     }
   }
 
