@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import {
   BadRequestException,
   CACHE_MANAGER,
@@ -16,17 +15,7 @@ import { Connection, Repository } from 'typeorm';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
 import { RaidEnterDto } from './dto/raidEnter.dto';
-<<<<<<< Updated upstream
-import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
-import { Cache } from 'cache-manager';
-import { TopRankerListDto } from './dto/topRankerList.dto';
-import { IRankingInfo } from './rankingInfo.interface';
-import { ErrorType } from 'src/common/error.enum';
-
-import AxiosHelper from '../utils/axiosHelper';
-=======
 import { EnterBossRaidOption } from 'src/utils/interface/enterBossOption.interface';
-import { RaidStatus } from './dto/raidStatus.dto';
 import { Cache } from 'cache-manager';
 import { TopRankerListDto } from './dto/topRankerList.dto';
 import { IRankingInfo } from './rankingInfo.interface';
@@ -34,15 +23,11 @@ import { ErrorType } from 'src/utils/responseHandler/error.enum';
 import { InjectQueue, Process, Processor } from '@nestjs/bull';
 import { Queue, Job } from 'bull';
 import AxiosHelper from '../utils/helper/axiosHelper';
->>>>>>> Stashed changes
 import moment from 'moment';
 import { UserService } from 'src/user/user.service';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
 import { IRaidStatus } from './raidStatus.interface';
-
-import { InjectQueue, Processor } from '@nestjs/bull';
-import { Queue } from 'bull';
 
 @Injectable()
 @Processor('playerQueue')
