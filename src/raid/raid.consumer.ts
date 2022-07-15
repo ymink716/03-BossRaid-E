@@ -5,8 +5,8 @@ import { RaidService } from 'src/raid/raid.service';
 
 /**
  * @작성자 박신영
-  * @description Queue에서 보스 레이드를 진행할 유저들을 체크합니다.
-*/
+ * @description Queue에서 보스 레이드를 진행할 유저들을 체크합니다.
+ */
 @Processor('playerQueue')
 export class RaidConsumer {
   private readonly logger = new Logger(RaidConsumer.name);
