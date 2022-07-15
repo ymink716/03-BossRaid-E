@@ -4,27 +4,24 @@ import { Cache } from 'cache-manager';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidStatus } from './dto/raidStatus.dto';
 import { RaidService } from './raid.service';
-import { CreateRaidDTO } from './dto/raidEnter.dto';
-
+import { RaidEnterDto } from './dto/raidEnter.dto';
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 import { MSG } from 'src/common/response.enum';
-import { RequestRaidDto } from './dto/requestRaid.dto';
+import { TopRankerListDto } from './dto/topRankerList.dto';
+import { IRaidStatus } from './raidStatus.interface';
 
 @ApiBearerAuth('access_token')
 @UseGuards(JwtAuthGuard)
 @ApiTags('BossRaid')
 @Controller('bossRaid')
 export class RaidController {
-  constructor(
-    private readonly raidService: RaidService,
-    @Inject(CACHE_MANAGER)
-    private readonly cacheManager: Cache,
-  ) {}
+  constructor(private readonly raidService: RaidService) {}
 
-  /* 
-    작성자 : 김태영
-  */
+  /**
+   * @작성자 김태영
+   * @description 레이드 상태 조회 컨트롤러
+   */
   @ApiCreatedResponse({
     status: MSG.getRaidStatus.code,
     description: MSG.getRaidStatus.msg,
@@ -33,44 +30,53 @@ export class RaidController {
   async getRaidStatus(): Promise<RaidStatus> {
     try {
       // 레디스 조회시 결과
-      const redisResult: RaidStatus = await this.raidService.getStatusFromRedis();
+      const redisResult: IRaidStatus = await this.raidService.getStatusFromRedis();
+      delete redisResult.raidRecordId;
 
       return redisResult;
     } catch (error) {
       console.log(error);
       //레디스 에러 시 DB에서의 상태 조회 결과
       const dbResult = await this.raidService.getStatusFromDB();
+      delete dbResult.raidRecordId;
+
       return dbResult;
     }
   }
 
-  @ApiBody({ type: CreateRaidDTO })
+  /**
+   * @작성자 박신영
+   * @description 레이드 시작 컨트롤러
+   */
+  @ApiBody({ type: RaidEnterDto })
   @ApiCreatedResponse({
     description: MSG.enterBossRaid.msg,
   })
   @Post('enter')
-  async enterRaid(@Body() createRaidDto: CreateRaidDTO) {
-    const result = await this.raidService.enterBossRaid(createRaidDto);
+  async enterRaid(@Body() raidEnterDto: RaidEnterDto) {
+    const result = await this.raidService.enterBossRaid(raidEnterDto);
     // 캐시에 항목 추가
 
     return result;
   }
 
-  /* 
-    작성자 : 김용민
-  */
+  /**
+   * @작성자 김용민
+   * @description 레이드 종료 컨트롤러
+   */
   @ApiBody({ type: RaidEndDto })
   @Patch('end')
-  endRaid(@Body() raidEndDto: RaidEndDto) {
+  endRaid(@Body() raidEndDto: RaidEndDto): Promise<void> {
     return this.raidService.endRaid(raidEndDto);
   }
 
-  /* 
-    작성자 : 염하늘
-  */
-  //  @ApiBody({ type: RequestRaidDto })
+  /**
+   * @작성자 염하늘
+   * @description 레이드 유저 랭킹 조회 컨트롤러
+   */
+  @ApiBody({ type: TopRankerListDto })
   @Post('topRankerList')
-  topRankerList(@Body() dto: RequestRaidDto) {
+  topRankerList(@Body() dto: TopRankerListDto) {
     const result = this.raidService.rankRaid(dto);
     return result;
   }

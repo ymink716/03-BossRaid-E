@@ -3,9 +3,9 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UserService } from 'src/user/user.service';
 
-/* 
-  작성자 : 박신영
-   - passport refresh 토큰 검증을 위한 strategy 구축 
+/**
+ * @작성자 박신영
+  * @description passport refresh 토큰 검증을 위한 strategy 구축
 */
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
