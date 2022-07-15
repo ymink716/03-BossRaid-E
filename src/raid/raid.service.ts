@@ -50,7 +50,7 @@ export class RaidService {
   /**
    * @작성자 박신영
    * @description 레이드 시작에 관한 비지니스 로직 구현
-  */
+   */
   async enterBossRaid(raidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
     // queue에 보스 레이드를 시작하려는 유저를 넣습니다.
     let queueData;
@@ -116,12 +116,12 @@ export class RaidService {
 
   /**
    * @작성자 박신영
-   * @description 
+   * @description
    * - 2. Producer
    * - queue에 userId와 level을 추가합니다. (큐에 추가한 데이터를 Job이라고 합니다)
-   * - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다. 
+   * - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다.
    * - option은 지연(생성 시점 부터 작업을 실행할 시기), 시도(작업 실패 시 재시도 횟수)와 같은 옵션 등이 있습니다.
-  */
+   */
   async addPlayerQueue(playerData: RaidEnterDto) {
     try {
       const player = await this.playerQueue.add('player', playerData, {
@@ -138,7 +138,7 @@ export class RaidService {
   /**
    * @작성자 김용민
    * @description 레이드 종료에 관한 비지니스 로직 구현
-  */
+   */
   async endRaid(raidEndDto: RaidEndDto): Promise<void> {
     const { userId, raidRecordId } = raidEndDto;
     const raidStatus: IRaidStatus = await this.cacheManager.get('raidStatus');
@@ -214,12 +214,19 @@ export class RaidService {
    * @description 레이드 랭킹 조회 로직 구현
    */
   async rankRaid(raidRankDto: TopRankerListDto) {
+
+    // user 존재 여부를 조회합니다.
     const user = await this.userService.getUserById(raidRankDto.userId);
 
-    const topRankerInfoList = await this.getTopRankerList();
+    await this.staticDataCaching();
 
+    // top 10 랭킹을 조회합니다.
+    const RankerInfoList = await this.getTopRankerList();
+    const topRankerInfoList = RankerInfoList.slice(0,9);
+
+    // 접속한 유저(자신)의 랭킹을 조회합니다.
     let ranking = 0;
-    topRankerInfoList.forEach(element => {
+    RankerInfoList.forEach(element => {
       if (user.id == element.userId) ranking = element.ranking;
     });
     const myRankingInfo: IRankingInfo = {
@@ -232,7 +239,7 @@ export class RaidService {
 
   /**
    * @작성자 염하늘
-   * @description static data redis caching
+   * @description static data를 redis에 캐싱합니다.
    */
   public async staticDataCaching() {
     // S3 static data 가져오기
@@ -248,21 +255,23 @@ export class RaidService {
   /**
    * @작성자 김태영, 염하늘
    * @description 랭크 탑 10 리스트 불러오기
+   *  레이드를 진행한 전체 유저의 점수(totalScore)를 내림차 순으로 가져옵니다.(zscore)
+   *  해당 점수의 랭킹 리스트를 가져옵니다. (zrevrangebyscore)
+   *  위의 랭킹 리스트[0]에 해당하는 랭킹을 가져와서 동점을 처리합니다.  (zrevrank)
    */
   async getTopRankerList(): Promise<IRankingInfo[]> {
-    //const member = await this.redis.zrevrange('Raid-Rank', 0, 9);
-    const allUsers = await this.redis.zrevrange('Rank-Rank',0,-1);
+    const allUsers = await this.redis.zrevrange('Raid-Rank', 0, -1);
     const resultTotal: IRankingInfo[] = await Promise.all(
       allUsers.map(async el => {
         const score = await this.redis.zscore('Raid-Rank', el);
         const sameScoreList = await this.redis.zrevrangebyscore('Raid-Rank', score, score);
         const firstKey = sameScoreList[0];
         const rank = await this.redis.zrevrank('Raid-Rank', firstKey);
-
         const result: IRankingInfo = { ranking: rank + 1, userId: Number(el), totalScore: Number(score) };
         return result;
       }),
     );
+
     return resultTotal;
   }
 
