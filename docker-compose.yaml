@@ -35,6 +35,3 @@ services:
     image: redis:latest
     ports:
       - 6379:6379
-Footer
-© 2022 GitHub, Inc.
-Footer navigation
