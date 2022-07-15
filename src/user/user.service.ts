@@ -86,23 +86,6 @@ export class UserService {
       }));
 
       const userInfo: UserInfoDTO = { totalScore, bossRaidHistory };
-
-      console.log(userInfo);
-      // const user = await this.userRepository
-      //   .createQueryBuilder('user')
-      //   .innerJoinAndSelect('user.raids', 'raids')
-      //   .where('user.id = :id', { id })
-      //   .orderBy('raids.endTime', 'ASC')
-      //   .addSelect('user.totalScore', 'totalScore')
-      //   .addSelect('raids.id', 'raidRecordId')
-      //   .addSelect('raids.score', 'score')
-      //   .addSelect('raids.enterTime', 'enterTime')
-      //   .addSelect('raids.endTime', 'endTime')
-      //   .setParameters({})
-      //   .getMany();
-
-      // console.log(user[0].raids);
-
       return userInfo;
     } catch (error) {
       console.error(error);

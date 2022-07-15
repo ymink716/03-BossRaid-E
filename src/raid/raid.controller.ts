@@ -76,8 +76,7 @@ export class RaidController {
    */
   @ApiBody({ type: TopRankerListDto })
   @Post('topRankerList')
-  topRankerList(@Body() dto: TopRankerListDto) {
-    const result = this.raidService.rankRaid(dto);
-    return result;
+  topRankerList(@Body() raidRankDto: TopRankerListDto) {
+    return this.raidService.rankRaid(raidRankDto);
   }
 }
