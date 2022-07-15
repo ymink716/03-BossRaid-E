@@ -1,7 +1,6 @@
 import { InjectQueue, Process, Processor } from '@nestjs/bull';
 import { ForbiddenException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { Job, Queue } from 'bull';
-import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
 import { ErrorType } from 'src/common/error.enum';
 import { RaidService } from 'src/raid/raid.service';
 

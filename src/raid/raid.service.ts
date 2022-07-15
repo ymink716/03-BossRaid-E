@@ -48,7 +48,7 @@ export class RaidService {
   /**
    * @작성자 박신영
    * @description 레이드 시작에 관한 비지니스 로직 구현
-  */
+   */
   async enterBossRaid(raidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
     // queue에 보스 레이드를 시작하려는 유저를 넣습니다.
     let queueData;
@@ -114,12 +114,12 @@ export class RaidService {
 
   /**
    * @작성자 박신영
-   * @description 
+   * @description
    * - 2. Producer
    * - queue에 userId와 level을 추가합니다. (큐에 추가한 데이터를 Job이라고 합니다)
-   * - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다. 
+   * - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다.
    * - option은 지연(생성 시점 부터 작업을 실행할 시기), 시도(작업 실패 시 재시도 횟수)와 같은 옵션 등이 있습니다.
-  */
+   */
   async addPlayerQueue(playerData: RaidEnterDto) {
     try {
       const player = await this.playerQueue.add('player', playerData, {
@@ -136,7 +136,7 @@ export class RaidService {
   /**
    * @작성자 김용민
    * @description 레이드 종료에 관한 비지니스 로직 구현
-  */
+   */
   async endRaid(raidEndDto: RaidEndDto): Promise<void> {
     const { userId, raidRecordId } = raidEndDto;
     let raidStatus: IRaidStatus;
@@ -268,18 +268,18 @@ export class RaidService {
    */
   async getTopRankerList(): Promise<IRankingInfo[]> {
     //const member = await this.redis.zrevrange('Raid-Rank', 0, 9);
-    const allUsers = await this.redis.zrevrange('Rank-Rank',0,-1);
+    const allUsers = await this.redis.zrevrange('Raid-Rank', 0, -1);
     const resultTotal: IRankingInfo[] = await Promise.all(
       allUsers.map(async el => {
         const score = await this.redis.zscore('Raid-Rank', el);
         const sameScoreList = await this.redis.zrevrangebyscore('Raid-Rank', score, score);
         const firstKey = sameScoreList[0];
         const rank = await this.redis.zrevrank('Raid-Rank', firstKey);
-
         const result: IRankingInfo = { ranking: rank + 1, userId: Number(el), totalScore: Number(score) };
         return result;
       }),
     );
+
     return resultTotal;
   }
 
