@@ -14,10 +14,10 @@ import { Connection, Repository } from 'typeorm';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
 import { RaidEnterDto } from './dto/raidEnter.dto';
-import { EnterBossRaidOption } from 'src/utils/interface/enterBossOption.interface';
+import { EnterBossRaidOption } from 'src/raid/interface/enterBossOption.interface';
 import { Cache } from 'cache-manager';
 import { TopRankerListDto } from './dto/topRankerList.dto';
-import { IRankingInfo } from './rankingInfo.interface';
+import { IRankingInfo } from './interface/rankingInfo.interface';
 import { ErrorType } from 'src/utils/responseHandler/error.enum';
 import { InjectQueue, Processor } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -26,7 +26,7 @@ import moment from 'moment';
 import { UserService } from 'src/user/user.service';
 import { InjectRedis } from '@nestjs-modules/ioredis';
 import Redis from 'ioredis';
-import { IRaidStatus } from './raidStatus.interface';
+import { IRaidStatus } from './interface/raidStatus.interface';
 
 @Injectable()
 @Processor('playerQueue')
