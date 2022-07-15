@@ -6,7 +6,7 @@ import * as cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
 import { SentryInterceptor } from './config/sentryInterceptor.config';
-import { HttpResponseInterceptor } from './common/response.interceptor';
+import { HttpResponseInterceptor } from './utils/responseHandler/response.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: true });
@@ -15,16 +15,15 @@ async function bootstrap() {
   app.use(cookieParser());
   app.useGlobalPipes(new ValidationPipe());
 
-  // Sentry
+  Sentry;
   if (process.env.NODE_ENV == 'dev') {
     Sentry.init({
-      dsn: process.env.SENTRY_DSN
+      dsn: process.env.SENTRY_DSN,
     });
     app.useGlobalInterceptors(new SentryInterceptor());
   } else {
     app.useGlobalInterceptors(new HttpResponseInterceptor());
   }
-
 
   // Swagger API Docs
   const documentOptions = new BaseAPIDocumentation().initializeOptions();

@@ -1,14 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsNumber } from 'class-validator';
 
-export class RaidEndDto {
+export class RaidEnterDto {
   @ApiProperty({ description: '유저 아이디', example: 1 })
-  @IsNotEmpty()
   @IsNumber()
+  @IsNotEmpty()
   readonly userId: number;
 
-  @ApiProperty({ description: '레이드 기록 아이디', example: 1 })
-  @IsNotEmpty()
+  @ApiProperty({ description: '보스 레이드 레벨', example: 1 })
   @IsNumber()
-  readonly raidRecordId: number;
+  @IsNotEmpty()
+  readonly level: number;
 }
