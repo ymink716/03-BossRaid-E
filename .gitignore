@@ -36,4 +36,8 @@ lerna-debug.log*
 
 /env
 .env
+
 dump.rdb
+
+
+
