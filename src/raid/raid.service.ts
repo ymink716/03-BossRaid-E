@@ -260,7 +260,7 @@ export class RaidService {
    *  위의 랭킹 리스트[0]에 해당하는 랭킹을 가져와서 동점을 처리합니다.  (zrevrank)
    */
   async getTopRankerList(): Promise<IRankingInfo[]> {
-    const allUsers = await this.redis.zrevrange('Rank-Rank', 0, -1);
+    const allUsers = await this.redis.zrevrange('Raid-Rank', 0, -1);
     const resultTotal: IRankingInfo[] = await Promise.all(
       allUsers.map(async el => {
         const score = await this.redis.zscore('Raid-Rank', el);
