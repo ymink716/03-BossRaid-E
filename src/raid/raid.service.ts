@@ -218,8 +218,6 @@ export class RaidService {
     // user 존재 여부를 조회합니다.
     const user = await this.userService.getUserById(raidRankDto.userId);
 
-    await this.staticDataCaching();
-
     // top 10 랭킹을 조회합니다.
     const RankerInfoList = await this.getTopRankerList();
     const topRankerInfoList = RankerInfoList.slice(0,9);
