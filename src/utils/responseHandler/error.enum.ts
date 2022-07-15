@@ -12,6 +12,7 @@ export const ErrorType = {
   raidRecordNotFound: { code: 404, msg: '레이드 기록이 존재하지 않습니다' },
   raidStatusNotFound: { code: 404, msg: '진행 중인 레이드가 없습니다.'},
   raidStatusBadRequest: { code: 400, msg: '진행 중인 레이드 정보와 일치하지 않습니다.'},
+  raidStatusForbidden: { code: 400, msg: '레이드에 접근할 수 없습니다.'},// 추후 수정
 
 
   // Server
@@ -21,4 +22,5 @@ export const ErrorType = {
 
   // Utils
   axiosError: { code: 421, msg: '레이드 정보 json을 불러오지 못했습니다' },
+  bullError:{ code: 421, msg: '큐에 정보를 저장하지 못했습니다.'} // 추후 수정
 };
