@@ -9,7 +9,7 @@ import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 import { MSG } from 'src/utils/responseHandler/response.enum';
 import { TopRankerListDto } from './dto/topRankerList.dto';
-import { IRaidStatus } from './raidStatus.interface';
+import { IRaidStatus } from './interface/raidStatus.interface';
 
 @ApiBearerAuth('access_token')
 @UseGuards(JwtAuthGuard)
