@@ -5,7 +5,6 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
-  MisdirectedException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -44,7 +43,7 @@ export class RaidService {
     @InjectRedis() private readonly redis: Redis,
     private readonly connection: Connection,
   ) {
-    this.staticDataCaching();  // 보스레이드 정보 초기화
+    this.staticDataCaching(); // 보스레이드 정보 초기화
   }
 
   /**
@@ -164,23 +163,29 @@ export class RaidService {
   /**
    * @작성자 김태영
    * @description 레디스에서 레이드 상태 정보 불러오기
+   * - 상태 정보가 존재하면 입장가능여부 false로 전달, 존재하지 않으면 입장가능여부 true로 전달
+   * - 에러시 레디스 에러로 간주합니다
    */
   async getStatusFromRedis(): Promise<IRaidStatus> {
     try {
-      const getRedis: IRaidStatus = await this.cacheManager.get('raidStatus'); // 레디스에서 레이드 상태 정보 불러오기
+      const getRedis: IRaidStatus = await this.cacheManager.get('raidStatus');
 
       const result: IRaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
-      // 상태 정보가 존재하면 입장가능여부 false로 전달, 존재하지 않으면 입장가능여부 true로 전달
 
       return result;
     } catch (error) {
-      throw new InternalServerErrorException(ErrorType.redisError.msg); // 에러시 레디스 에러로 간주합니다
+      throw new InternalServerErrorException(ErrorType.redisError.msg);
     }
   }
 
   /**
    * @작성자 김태영
    * @description 데이터베이스에서 최근 레이드 기록을 통해 레이드 상태 정보 불러오기
+   * - 가장 최근의 레이드 기록을 불러 옵니다
+   *  - 에러시 sql 에러
+   * - 레이드 레코드 값이 없을 시 에러
+   * - 현재시간과 레이드 시작 시간간의 차이가 레이드 제한시간 보다 작을시 레이드가 진행중인 것으로 간주합니다
+   *  - 상태 정보가 존재하면 그대로 전달, 존재하지 않으면 입장여부 true로 전달
    */
   async getStatusFromDB(): Promise<IRaidStatus> {
     let raidRecord: RaidRecord;
@@ -189,23 +194,23 @@ export class RaidService {
         .createQueryBuilder('record')
         .leftJoinAndSelect('record.user', 'user')
         .orderBy('enterTime', 'DESC')
-        .getOne(); // 가장 최근의 레이드 기록을 불러 옵니다
+        .getOne(); //
     } catch (error) {
-      throw new InternalServerErrorException(ErrorType.databaseServerError.msg); // 에러시 sql 에러
+      throw new InternalServerErrorException(ErrorType.databaseServerError.msg);
     }
 
-    if (!raidRecord) throw new NotFoundException(ErrorType.raidRecordNotFound.msg); // 레이드 레코드 값이 없을 시 에러
+    if (!raidRecord) throw new NotFoundException(ErrorType.raidRecordNotFound.msg);
 
     const now = moment(); // 현재시간
     const enterTime = moment(raidRecord.enterTime); // 레이드 기록 상의 레이드 시작 시간
 
     const duration = moment.duration(now.diff(enterTime)).asSeconds(); // moment.js로 현재시간과 레이드 시작시간 간의 차이(초) 계산
-    const bossRaidLimitSeconds = await this.cacheManager.get('bossRaidLimitSeconds');  // 레이드 제한 시간
-  
+    const bossRaidLimitSeconds = await this.cacheManager.get('bossRaidLimitSeconds'); // 레이드 제한 시간
+
     const result: IRaidStatus =
-      duration < Number(bossRaidLimitSeconds) // 현재시간과 레이드 시작 시간간의 차이가 레이드 제한시간 보다 작을시 레이드가 진행중인 것으로 간주합니다
+      duration < Number(bossRaidLimitSeconds) //
         ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
-        : { canEnter: true, enteredUserId: null, raidRecordId: null }; // 상태 정보가 존재하면 그대로 전달, 존재하지 않으면 입장여부 true로 전달
+        : { canEnter: true, enteredUserId: null, raidRecordId: null };
     return result;
   }
 
@@ -214,13 +219,12 @@ export class RaidService {
    * @description 레이드 랭킹 조회 로직 구현
    */
   async rankRaid(raidRankDto: TopRankerListDto) {
-
     // user 존재 여부를 조회합니다.
     const user = await this.userService.getUserById(raidRankDto.userId);
 
     // top 10 랭킹을 조회합니다.
     const RankerInfoList = await this.getTopRankerList();
-    const topRankerInfoList = RankerInfoList.slice(0,9);
+    const topRankerInfoList = RankerInfoList.slice(0, 9);
 
     // 접속한 유저(자신)의 랭킹을 조회합니다.
     let ranking = 0;
