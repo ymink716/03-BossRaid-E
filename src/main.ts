@@ -6,7 +6,7 @@ import * as cookieParser from 'cookie-parser';
 import { ValidationPipe } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
 import { SentryInterceptor } from './config/sentryInterceptor.config';
-import { HttpResponseInterceptor } from './common/response.interceptor';
+import { HttpResponseInterceptor } from './utils/responseHandler/response.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: true });

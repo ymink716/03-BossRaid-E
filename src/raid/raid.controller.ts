@@ -7,7 +7,7 @@ import { RaidService } from './raid.service';
 import { RaidEnterDto } from './dto/raidEnter.dto';
 import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
-import { MSG } from 'src/common/response.enum';
+import { MSG } from 'src/utils/responseHandler/response.enum';
 import { TopRankerListDto } from './dto/topRankerList.dto';
 import { IRaidStatus } from './raidStatus.interface';
 

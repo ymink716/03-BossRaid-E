@@ -21,9 +21,9 @@ import { CreateUserDTO } from './dto/createUser.dto';
 import { User } from './entities/user.entity';
 import { UserService } from './user.service';
 import { LocalAuthGuard } from 'src/auth/passport/guard/localAuthGuard';
-import { GetUser } from 'src/common/getUserDecorator';
-import { MSG } from 'src/common/response.enum';
-import { defaultTokenOption } from 'src/common/tokenOption.interface';
+import { GetUser } from 'src/utils/helper/getUserDecorator';
+import { MSG } from 'src/utils/responseHandler/response.enum';
+import { defaultTokenOption } from 'src/utils/interface/tokenOption.interface';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 
 @ApiTags('user')

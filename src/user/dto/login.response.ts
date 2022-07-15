@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { BaseResponse } from '../../common/baseResponse.dto';
+import { BaseResponse } from '../../utils/responseHandler/baseResponse.dto';
 import { User } from '../entities/user.entity';
 
 export abstract class LoginResponseData {
