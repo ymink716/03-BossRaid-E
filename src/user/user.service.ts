@@ -25,7 +25,7 @@ export class UserService {
   /**
    * @작성자 김용민
    * @description 비밀번호 체크, 중복 이메일 확인 후 사용자를 추가합니다.
-  */
+   */
   async createUser(createUserDto: CreateUserDTO): Promise<User> {
     const { email, password, nickname, confirmPassword } = createUserDto;
 
@@ -44,6 +44,7 @@ export class UserService {
 
     try {
       await this.userRepository.save(user);
+
       return user;
     } catch ({ errno, sqlMessage }) {
       if (errno === 1062) {
@@ -61,7 +62,7 @@ export class UserService {
   /**
    * @작성자 김지유
    * @description 유저의 id로 레이드 기록 및 총 점수를 조회합니다.
-  */
+   */
   async getUserInfo(id: number): Promise<UserInfoDTO | undefined> {
     try {
       // version 1. 살짝 무식한 방법...
@@ -86,6 +87,7 @@ export class UserService {
       }));
 
       const userInfo: UserInfoDTO = { totalScore, bossRaidHistory };
+
       return userInfo;
     } catch (error) {
       console.error(error);
@@ -95,7 +97,7 @@ export class UserService {
   /**
    * @작성자 김용민
    * @description 이메일로 사용자를 가져옵니다.
-  */
+   */
   async getUserByEmail(email: string): Promise<User | undefined> {
     const user = await this.userRepository.findOne({ where: { email } });
 
@@ -109,7 +111,7 @@ export class UserService {
   /**
    * @작성자 박신영
    * @description DB에 발급받은 Refresh Token을 암호화하여 저장(bycrypt)
-  */
+   */
   async setCurrentRefreshToken(refreshToken: string, email: string) {
     const salt = await bcrypt.genSalt();
     const hashedRefreshToken = await bcrypt.hash(refreshToken, salt);
@@ -124,7 +126,7 @@ export class UserService {
   /**
    * @작성자 박신영
    * @description 데이터베이스 조회 후 Refresh Token이 유효한지 확인
-  */
+   */
   async getUserRefreshTokenMatches(refreshToken: string, email: string) {
     const user = await this.getUserByEmail(email);
     const isRefreshTokenMatching = await compare(refreshToken, user.hashedRefreshToken);
@@ -137,7 +139,7 @@ export class UserService {
   /**
    * @작성자 박신영
    * @description Refresh Token 값을 null로 바꿈
-  */
+   */
   async removeRefreshToken(id: number) {
     return await this.userRepository.update(id, {
       hashedRefreshToken: null,
@@ -147,10 +149,10 @@ export class UserService {
   /**
    * @작성자 김용민
    * @description id로 사용자를 가져옵니다.
-  */
+   */
   async getUserById(userId: number) {
     const user: User = await this.userRepository.findOne({ where: { id: userId } });
-    
+
     if (!user) {
       throw new NotFoundException(ErrorType.userNotFound.msg);
     }
