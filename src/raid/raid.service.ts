@@ -65,7 +65,6 @@ export class RaidService {
     let dbResult: IRaidStatus;
     try {
       redisResult = await this.getStatusFromRedis();
-      console.log(redisResult);
     } catch (error) {
       dbResult = await this.getStatusFromDB();
     }
@@ -143,7 +142,7 @@ export class RaidService {
 
     // 레이드 상태가 유효한 값인지 확인
     await this.checkRaidStatus(raidStatus, userId, raidRecordId);
-    
+
     const record: RaidRecord = await this.getRaidRecordById(raidRecordId);
     const score = await this.cacheManager.get(`level_${record.level}`);
     if (!score) {
