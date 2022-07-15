@@ -1,6 +1,5 @@
-import { Body, CACHE_MANAGER, Controller, Get, Inject, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
-import { Cache } from 'cache-manager';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidStatusRes } from './dto/raidStatusRes.dto';
 import { RaidService } from './raid.service';
@@ -9,7 +8,7 @@ import { ApiBearerAuth, ApiCreatedResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/passport/guard/jwtAuthGuard';
 import { MSG } from 'src/utils/responseHandler/response.enum';
 import { TopRankerListDto } from './dto/topRankerList.dto';
-import { IRaidStatus } from './raidStatus.interface';
+import { IRaidStatus } from './interface/raidStatus.interface';
 
 @ApiBearerAuth('access_token')
 @UseGuards(JwtAuthGuard)
@@ -21,6 +20,10 @@ export class RaidController {
   /**
    * @작성자 김태영
    * @description 레이드 상태 조회 컨트롤러
+   * - try : 레디스 조회시 결과
+   *  - 리턴값에 맞게 레이드 레코드 아이디는 제외합니다
+   * - catch : 레디스 에러 시 DB에서의 상태 조회 결과
+   *  - 리턴값에 맞게 레이드 레코드 아이디는 제외합니다
    */
   @ApiCreatedResponse({
     status: MSG.getRaidStatus.code,
@@ -29,16 +32,14 @@ export class RaidController {
   @Get()
   async getRaidStatus(): Promise<RaidStatusRes> {
     try {
-      // 레디스 조회시 결과
       const redisResult: IRaidStatus = await this.raidService.getStatusFromRedis();
-      delete redisResult.raidRecordId; // 리턴값에 맞게 레이드 레코드 아이디는 제외합니다
+      delete redisResult.raidRecordId;
 
       return redisResult;
     } catch (error) {
-      // 레디스 에러 시 DB에서의 상태 조회 결과
       console.log(error);
       const dbResult: IRaidStatus = await this.raidService.getStatusFromDB();
-      delete dbResult.raidRecordId; // 리턴값에 맞게 레이드 레코드 아이디는 제외합니다
+      delete dbResult.raidRecordId;
 
       return dbResult;
     }
