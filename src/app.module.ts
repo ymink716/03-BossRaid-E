@@ -12,7 +12,6 @@ import type { RedisClientOptions } from 'redis';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [`env/.env`],
     }),
     UserModule,
     AuthModule,

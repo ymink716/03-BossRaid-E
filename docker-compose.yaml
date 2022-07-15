@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./env:/boss-raid/env
+      - .env:/boss-raid/.env
       - ./src:/boss-raid/src
     environment:
       - TZ=Asia/Seoul
