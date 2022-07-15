@@ -43,7 +43,9 @@ export class RaidService {
     private playerQueue: Queue,
     @InjectRedis() private readonly redis: Redis,
     private readonly connection: Connection,
-  ) {}
+  ) {
+    
+  }
 
   /**
    * @작성자 박신영
@@ -139,34 +141,29 @@ export class RaidService {
   */
   async endRaid(raidEndDto: RaidEndDto): Promise<void> {
     const { userId, raidRecordId } = raidEndDto;
-    let raidStatus: IRaidStatus;
+    const raidStatus: IRaidStatus = await this.cacheManager.get('raidStatus');
 
-    try {
-      raidStatus = await this.cacheManager.get('raidStatus');
-      // 레이드 상태가 유효한 값인지 확인
-      await this.checkRaidStatus(raidStatus, userId, raidRecordId);
+    // 레이드 상태가 유효한 값인지 확인
+    await this.checkRaidStatus(raidStatus, userId, raidRecordId);
 
-      // S3에서 보스레이드 정보 가져오기
-      const response = await AxiosHelper.getInstance();
-      const bossRaid = response.data.bossRaids[0];
+    // S3에서 보스레이드 정보 가져오기
+    const response = await AxiosHelper.getInstance();
+    const bossRaid = response.data.bossRaids[0];
 
-      const record: RaidRecord = await this.getRaidRecordById(raidRecordId);
+    const record: RaidRecord = await this.getRaidRecordById(raidRecordId);
 
-      for (const l of bossRaid.levels) {
-        if (l.level === record.level) {
-          record.score = l.score; // 레이드 기록에 보스 레벨에 따른 스코어 반영
-          break;
-        }
+    for (const l of bossRaid.levels) {
+      if (l.level === record.level) {
+        record.score = l.score; // 레이드 기록에 보스 레벨에 따른 스코어 반영
+        break;
       }
-      const user: User = await this.userService.getUserById(userId);
-      user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
-
-      await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
-      await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
-      await this.updateUserRanking(userId, record.score); // 유저 랭킹 업데이트
-    } catch (error) {
-      throw new InternalServerErrorException(ErrorType.serverError.msg);
     }
+    const user: User = await this.userService.getUserById(userId);
+    user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
+
+    await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
+    await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
+    await this.updateUserRanking(userId, record.score); // 유저 랭킹 업데이트
   }
 
   /**
