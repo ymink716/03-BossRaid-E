@@ -214,12 +214,19 @@ export class RaidService {
    * @description 레이드 랭킹 조회 로직 구현
    */
   async rankRaid(raidRankDto: TopRankerListDto) {
+
+    // user 존재 여부를 조회합니다.
     const user = await this.userService.getUserById(raidRankDto.userId);
 
-    const topRankerInfoList = await this.getTopRankerList();
+    await this.staticDataCaching();
 
+    // top 10 랭킹을 조회합니다.
+    const RankerInfoList = await this.getTopRankerList();
+    const topRankerInfoList = RankerInfoList.slice(0,9);
+
+    // 접속한 유저(자신)의 랭킹을 조회합니다.
     let ranking = 0;
-    topRankerInfoList.forEach(element => {
+    RankerInfoList.forEach(element => {
       if (user.id == element.userId) ranking = element.ranking;
     });
     const myRankingInfo: IRankingInfo = {
@@ -232,7 +239,7 @@ export class RaidService {
 
   /**
    * @작성자 염하늘
-   * @description static data redis caching
+   * @description static data를 redis에 캐싱합니다.
    */
   public async staticDataCaching() {
     // S3 static data 가져오기
@@ -248,9 +255,11 @@ export class RaidService {
   /**
    * @작성자 김태영, 염하늘
    * @description 랭크 탑 10 리스트 불러오기
+   *  레이드를 진행한 전체 유저의 점수(totalScore)를 내림차 순으로 가져옵니다.(zscore)
+   *  해당 점수의 랭킹 리스트를 가져옵니다. (zrevrangebyscore)
+   *  위의 랭킹 리스트[0]에 해당하는 랭킹을 가져와서 동점을 처리합니다.  (zrevrank)
    */
   async getTopRankerList(): Promise<IRankingInfo[]> {
-    //const member = await this.redis.zrevrange('Raid-Rank', 0, 9);
     const allUsers = await this.redis.zrevrange('Raid-Rank', 0, -1);
     const resultTotal: IRankingInfo[] = await Promise.all(
       allUsers.map(async el => {
