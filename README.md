@@ -3,6 +3,7 @@
 ## Redis를 이용한 실시간 게임 참여 및 랭킹 조회 API 개발
 
 <br />
+
 ### :bookmark: 목차
 - [3주차-BossRaid-project 💫](#3주차-BossRaid-project)
   - [:family: 팀원](#family세상에-e런팀e팀원)
