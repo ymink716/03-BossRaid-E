@@ -1,8 +1,7 @@
-version: '3.7'
+version: '3.8'
 
 services:
   backend-server:
-    image: 'myapp'
     build:
       context: .
       dockerfile: Dockerfile

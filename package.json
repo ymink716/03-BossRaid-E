@@ -1,5 +1,5 @@
 {
-  "name": "02-moneybook-e",
+  "name": "boss-raid",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -9,7 +9,7 @@
     "prebuild": "rimraf dist",
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": " nest start --watch",
+    "start": "nest start --watch",
     "start:dev": "TZ=Asia/Seoul nest start --watch",
     "start:debug": "TZ=Asia/Seoul nest start --debug --watch",
     "start:prod": "TZ=Asia/Seoul node dist/main",

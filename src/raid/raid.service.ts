@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import {
   BadRequestException,
   CACHE_MANAGER,
@@ -6,31 +5,27 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
-  MisdirectedException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import axios from 'axios';
 import { User } from 'src/user/entities/user.entity';
-import { getConnection, Repository } from 'typeorm';
+import { Connection, Repository } from 'typeorm';
 import { RaidEndDto } from './dto/raidEnd.dto';
 import { RaidRecord } from './entities/raid.entity';
-import { CreateRaidDTO } from './dto/raidEnter.dto';
-import { EnterBossRaidOption } from 'src/common/enterBossOption.interface';
-import { RaidStatus } from './dto/raidStatus.dto';
+import { RaidEnterDto } from './dto/raidEnter.dto';
+import { EnterBossRaidOption } from 'src/raid/interface/enterBossOption.interface';
 import { Cache } from 'cache-manager';
-import { RequestRaidDto } from './dto/requestRaid.dto';
-import { IRankingInfo } from './rankingInfo.interface';
-import { ErrorType } from 'src/common/error.enum';
+import { TopRankerListDto } from './dto/topRankerList.dto';
+import { IRankingInfo } from './interface/rankingInfo.interface';
+import { ErrorType } from 'src/utils/responseHandler/error.enum';
 import { InjectQueue, Processor } from '@nestjs/bull';
 import { Queue } from 'bull';
-import AxiosHelper from './axiosHelper';
+import AxiosHelper from '../utils/helper/axiosHelper';
 import moment from 'moment';
 import { UserService } from 'src/user/user.service';
-import { Job } from 'bullmq';
-
-// require('moment-timezone');
-// moment.tz.setDefault('Asia/Seoul');
+import { InjectRedis } from '@nestjs-modules/ioredis';
+import Redis from 'ioredis';
+import { IRaidStatus } from './interface/raidStatus.interface';
 
 @Injectable()
 @Processor('playerQueue')
@@ -45,26 +40,32 @@ export class RaidService {
     private userService: UserService,
     @InjectQueue('playerQueue')
     private playerQueue: Queue,
-  ) {}
+    @InjectRedis() private readonly redis: Redis,
+    private readonly connection: Connection,
+  ) {
+    this.staticDataCaching(); // 보스레이드 정보 초기화
+  }
 
-  /* 
-    작성자 : 박신영
-  */
-  async enterBossRaid(createRaidDto: CreateRaidDTO): Promise<EnterBossRaidOption> {
+  /**
+   * @작성자 박신영
+   * @description 레이드 시작에 관한 비지니스 로직 구현
+   */
+  async enterBossRaid(raidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
     // queue에 보스 레이드를 시작하려는 유저를 넣습니다.
     let queueData;
     try {
-      await this.addPlayerQueue(createRaidDto);
+      await this.addPlayerQueue(raidEnterDto);
       queueData = await this.playerQueue.getJobs(['delayed'], 0, 0, false);
     } catch (e) {
       throw new InternalServerErrorException(ErrorType.bullError.msg);
     }
 
     // - 레이드 상태 조회
-    let redisResult: RaidStatus;
-    let dbResult: RaidStatus;
+    let redisResult: IRaidStatus;
+    let dbResult: IRaidStatus;
     try {
       redisResult = await this.getStatusFromRedis();
+      console.log(redisResult);
     } catch (error) {
       dbResult = await this.getStatusFromDB();
     }
@@ -83,16 +84,19 @@ export class RaidService {
     }
   }
 
-  async startBossRaid(createRaidDto: CreateRaidDTO): Promise<EnterBossRaidOption> {
+  async startBossRaid(raidEnterDto: RaidEnterDto): Promise<EnterBossRaidOption> {
     try {
+      const user = await this.userRepository.findOne({ where: { id: raidEnterDto.userId } });
       const newBossRaid = this.raidRecordRepository.create({
-        ...createRaidDto,
+        user,
+        level: raidEnterDto.level,
         score: 0,
       });
+
       const raidRecord = await this.raidRecordRepository.save(newBossRaid);
-      const setRedis: RaidStatus = {
+      const setRedis: IRaidStatus = {
         canEnter: false,
-        enteredUserId: createRaidDto.userId,
+        enteredUserId: raidEnterDto.userId,
         raidRecordId: raidRecord.id,
       };
       await this.cacheManager.set('raidStatus', setRedis, { ttl: 180 });
@@ -107,15 +111,16 @@ export class RaidService {
       throw new InternalServerErrorException(ErrorType.redisError.msg);
     }
   }
-  /* 
-    작성자 : 박신영
-    - 2. Producer
-    - queue에 userId와 level을 추가합니다. (큐에 추가한 데이터를 Job이라고 합니다)
-    - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다. 
-    - option은 지연(생성 시점 부터 작업을 실행할 시기), 시도(작업 실패 시 재시도 횟수)와 같은 옵션 등이 있습니다. 
-  */
 
-  async addPlayerQueue(playerData: CreateRaidDTO) {
+  /**
+   * @작성자 박신영
+   * @description
+   * - 2. Producer
+   * - queue에 userId와 level을 추가합니다. (큐에 추가한 데이터를 Job이라고 합니다)
+   * - Job은 Consumer(raid.consumer)이 데이터를 처리하는데 필요한 데이터를 포함한 개체입니다.
+   * - option은 지연(생성 시점 부터 작업을 실행할 시기), 시도(작업 실패 시 재시도 횟수)와 같은 옵션 등이 있습니다.
+   */
+  async addPlayerQueue(playerData: RaidEnterDto) {
     try {
       const player = await this.playerQueue.add('player', playerData, {
         removeOnComplete: true,
@@ -128,100 +133,43 @@ export class RaidService {
     }
   }
 
-  /* 
-    작성자 : 김용민
-      - 레이드 종료에 관한 비지니스 로직 구현
-  */
-  // 센트리로 에러 관리 추가 필요
-  // 유저 랭킹 업데이트 추가 필요
-  async endRaid(raidEndDto: RaidEndDto) {
-    const { userId, raidRecordId } = raidEndDto;
-    let raidStatus: RaidStatus;
-
-    try {
-      raidStatus = await this.cacheManager.get('raidStatus');
-      // 레이드 상태가 유효한 값인지 확인
-      await this.checkRaidStatus(raidStatus, userId, raidRecordId);
-
-      // S3에서 보스레이드 정보 가져오기 (캐싱 이용하면 수정)
-      const response = await AxiosHelper.getInstance();
-      const bossRaid = response.data.bossRaids[0];
-
-      const record: RaidRecord = await this.getRaidRecordById(raidRecordId);
-
-      for (const l of bossRaid.levels) {
-        if (l.level === record.level) {
-          record.score = l.score; // 보스 레벨에 따른 스코어 반영
-          break;
-        }
-      }
-
-      const user: User = await this.userService.getUserById(userId);
-      user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
-
-      await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
-      await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
-      await this.updateUserRanking(userId, user.totalScore); // 유저 랭킹 업데이트
-
-      return record; // 과제에서는 응답 리스폰스 없음 (테스트 후 수정)
-    } catch (error) {
-      throw new InternalServerErrorException(ErrorType.serverError.msg);
-    }
-  }
-
   /**
-   * @작성자 김태영
-   * @description 데이터베이스에서 최근 레이드 기록을 통해 레이드 상태 정보 불러오기
+   * @작성자 김용민
+   * @description 레이드 종료에 관한 비지니스 로직 구현
    */
-  async getStatusFromDB(): Promise<RaidStatus> {
-    let raidRecord: RaidRecord;
-    try {
-      raidRecord = await this.raidRecordRepository
-        .createQueryBuilder('record')
-        .leftJoinAndSelect('record.user', 'user')
-        .orderBy('enterTime', 'DESC')
-        .getOne();
-    } catch (error) {
-      throw new InternalServerErrorException(ErrorType.databaseServerError.msg);
+  async endRaid(raidEndDto: RaidEndDto): Promise<void> {
+    const { userId, raidRecordId } = raidEndDto;
+    const raidStatus: IRaidStatus = await this.cacheManager.get('raidStatus');
+
+    // 레이드 상태가 유효한 값인지 확인
+    await this.checkRaidStatus(raidStatus, userId, raidRecordId);
+    
+    const record: RaidRecord = await this.getRaidRecordById(raidRecordId);
+    const score = await this.cacheManager.get(`level_${record.level}`);
+    if (!score) {
+      throw new BadRequestException(ErrorType.raidLevelNotFound.msg);
     }
+    record.score = Number(score); // 레이드 기록에 보스 레벨에 따른 스코어 반영
 
-    if (!raidRecord) throw new NotFoundException(ErrorType.raidRecordNotFound.msg);
+    const user: User = await this.userService.getUserById(userId);
+    user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
 
-    let bossRaid;
-    try {
-      const response = await axios({
-        url: process.env.STATIC_DATA_URL,
-        method: 'GET',
-      });
-      bossRaid = response.data.bossRaids[0];
-    } catch (error) {
-      throw new MisdirectedException(ErrorType.axiosError.msg);
-    }
-
-    const now = moment();
-    const startedAt = moment(raidRecord.enterTime);
-
-    const duration = moment.duration(now.diff(startedAt)).asSeconds();
-
-    const result: RaidStatus =
-      duration < bossRaid.bossRaidLimitSeconds
-        ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
-        : { canEnter: true, enteredUserId: null, raidRecordId: null };
-
-    return result;
+    await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
+    await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
+    await this.updateUserRanking(userId, record.score); // 유저 랭킹 업데이트
   }
 
   /**
    * @작성자 김태영
    * @description 레디스에서 레이드 상태 정보 불러오기
+   * - 상태 정보가 존재하면 입장가능여부 false로 전달, 존재하지 않으면 입장가능여부 true로 전달
+   * - 에러시 레디스 에러로 간주합니다
    */
-  async getStatusFromRedis(): Promise<RaidStatus> {
+  async getStatusFromRedis(): Promise<IRaidStatus> {
     try {
-      const getRedis: RaidRecord = await this.cacheManager.get('raidStatus');
+      const getRedis: IRaidStatus = await this.cacheManager.get('raidStatus');
 
-      const result: RaidStatus = getRedis
-        ? { canEnter: false, enteredUserId: getRedis.userId, raidRecordId: getRedis.id }
-        : { canEnter: true, enteredUserId: null, raidRecordId: null };
+      const result: IRaidStatus = getRedis ? getRedis : { canEnter: true, enteredUserId: null, raidRecordId: null };
 
       return result;
     } catch (error) {
@@ -229,125 +177,162 @@ export class RaidService {
     }
   }
 
-  /* 작성자 : 염하늘
-      - raid 랭킹 조회 로직 구현
-    */
+  /**
+   * @작성자 김태영
+   * @description 데이터베이스에서 최근 레이드 기록을 통해 레이드 상태 정보 불러오기
+   * - 가장 최근의 레이드 기록을 불러 옵니다
+   *  - 에러시 sql 에러
+   * - 레이드 레코드 값이 없을 시 에러
+   * - 현재시간과 레이드 시작 시간간의 차이가 레이드 제한시간 보다 작을시 레이드가 진행중인 것으로 간주합니다
+   *  - 상태 정보가 존재하면 그대로 전달, 존재하지 않으면 입장여부 true로 전달
+   */
+  async getStatusFromDB(): Promise<IRaidStatus> {
+    let raidRecord: RaidRecord;
+    try {
+      raidRecord = await this.raidRecordRepository
+        .createQueryBuilder('record')
+        .leftJoinAndSelect('record.user', 'user')
+        .orderBy('enterTime', 'DESC')
+        .getOne(); //
+    } catch (error) {
+      throw new InternalServerErrorException(ErrorType.databaseServerError.msg);
+    }
 
-  async rankRaid(dto: RequestRaidDto) {
-    const user = await this.existUser(dto);
+    if (!raidRecord) throw new NotFoundException(ErrorType.raidRecordNotFound.msg);
 
-    await this.staticDataCaching();
+    const now = moment(); // 현재시간
+    const enterTime = moment(raidRecord.enterTime); // 레이드 기록 상의 레이드 시작 시간
 
-    // const response = await AxiosHelper.getInstance();
-    // const bossRaid = response.data.bossRaids[0];
+    const duration = moment.duration(now.diff(enterTime)).asSeconds(); // moment.js로 현재시간과 레이드 시작시간 간의 차이(초) 계산
+    const bossRaidLimitSeconds = await this.cacheManager.get('bossRaidLimitSeconds'); // 레이드 제한 시간
 
-    const myInfo: IRankingInfo = {
-      ranking: 1, // 변경
+    const result: IRaidStatus =
+      duration < Number(bossRaidLimitSeconds) //
+        ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
+        : { canEnter: true, enteredUserId: null, raidRecordId: null };
+    return result;
+  }
+
+  /**
+   * @작성자 염하늘
+   * @description 레이드 랭킹 조회 로직 구현
+   */
+  async rankRaid(raidRankDto: TopRankerListDto) {
+    // user 존재 여부를 조회합니다.
+    const user = await this.userService.getUserById(raidRankDto.userId);
+
+    // top 10 랭킹을 조회합니다.
+    const RankerInfoList = await this.getTopRankerList();
+    const topRankerInfoList = RankerInfoList.slice(0, 9);
+
+    // 접속한 유저(자신)의 랭킹을 조회합니다.
+    let ranking = 0;
+    RankerInfoList.forEach(element => {
+      if (user.id == element.userId) ranking = element.ranking;
+    });
+    const myRankingInfo: IRankingInfo = {
+      ranking: ranking,
       userId: user.id,
       totalScore: user.totalScore,
     };
-    return myInfo;
+    return { topRankerInfoList, myRankingInfo };
   }
 
-  /* 작성자 : 염하늘
-  static data redis caching
-  */
+  /**
+   * @작성자 염하늘
+   * @description static data를 redis에 캐싱합니다.
+   */
   public async staticDataCaching() {
     // S3 static data 가져오기
     const staticData = await AxiosHelper.getInstance();
     const bossRaid = staticData.data.bossRaids[0];
-    console.log(111, bossRaid);
 
-    await this.cacheManager.set('bossRaidLimitSeconds', bossRaid.bossRaidLimitSeconds);
-
-    await this.cacheManager.set('level_0', bossRaid.levels[0].score);
-    await this.cacheManager.set('level_1', bossRaid.levels[1].score);
-    await this.cacheManager.set('level_2', bossRaid.levels[2].score);
-
-    //   console log
-    console.log(await this.cacheManager.get('bossRaidLimitSeconds'));
-    console.log(await this.cacheManager.get('level_0'));
-    console.log(await this.cacheManager.get('level_1'));
-    console.log(await this.cacheManager.get('level_2'));
+    await this.cacheManager.set('bossRaidLimitSeconds', bossRaid.bossRaidLimitSeconds, { ttl: 0 });
+    await this.cacheManager.set('level_0', bossRaid.levels[0].score, { ttl: 0 });
+    await this.cacheManager.set('level_1', bossRaid.levels[1].score, { ttl: 0 });
+    await this.cacheManager.set('level_2', bossRaid.levels[2].score, { ttl: 0 });
   }
 
-  /*
-     작성자 : 염하늘
-     - user 조회 로직 함수화
-  */
-  public async existUser(requestDto: CreateRaidDTO | RaidEndDto | RequestRaidDto) {
-    const existUser: User = await this.userRepository.findOne({
-      where: {
-        id: requestDto.userId,
-      },
-    });
-    if (!existUser) {
-      throw new NotFoundException(ErrorType.userNotFound.msg);
-    } else {
-      return existUser;
-    }
+  /**
+   * @작성자 김태영, 염하늘
+   * @description 랭크 탑 10 리스트 불러오기
+   *  레이드를 진행한 전체 유저의 점수(totalScore)를 내림차 순으로 가져옵니다.(zscore)
+   *  해당 점수의 랭킹 리스트를 가져옵니다. (zrevrangebyscore)
+   *  위의 랭킹 리스트[0]에 해당하는 랭킹을 가져와서 동점을 처리합니다.  (zrevrank)
+   */
+  async getTopRankerList(): Promise<IRankingInfo[]> {
+    const allUsers = await this.redis.zrevrange('Raid-Rank', 0, -1);
+    const resultTotal: IRankingInfo[] = await Promise.all(
+      allUsers.map(async el => {
+        const score = await this.redis.zscore('Raid-Rank', el);
+        const sameScoreList = await this.redis.zrevrangebyscore('Raid-Rank', score, score);
+        const firstKey = sameScoreList[0];
+        const rank = await this.redis.zrevrank('Raid-Rank', firstKey);
+        const result: IRankingInfo = { ranking: rank + 1, userId: Number(el), totalScore: Number(score) };
+        return result;
+      }),
+    );
+
+    return resultTotal;
   }
 
-  /* 
-    작성자 : 김용민
-      - 레이드 종료 시 레이드 기록과 유저 정보를 트랜잭션으로 DB에 저장
-  */
+  /**
+   * @작성자 김용민, 김태영
+   * @description 레이드 종료 시 레이드 기록과 유저 정보를 트랜잭션으로 DB에 저장
+   */
   async saveRaidRecord(user: User, record: RaidRecord): Promise<void> {
-    const queryRunner = getConnection().createQueryRunner();
-
+    const queryRunner = this.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction('SERIALIZABLE');
     try {
-      queryRunner.startTransaction();
-      await this.raidRecordRepository.save(record);
-      await this.userRepository.save(user);
-      queryRunner.commitTransaction();
+      await queryRunner.manager.save(user);
+      await queryRunner.manager.save(record);
+      await queryRunner.commitTransaction();
     } catch (error) {
-      queryRunner.rollbackTransaction();
+      await queryRunner.rollbackTransaction();
+      throw error;
     } finally {
-      queryRunner.release();
+      await queryRunner.release();
     }
   }
 
-  /* 
-    작성자 : 김용민
-      - 레이드 종료 시 유저 랭킹을 레디스에 업데이트
-  */
-  async updateUserRanking(userId: number, totalScore: number): Promise<void> {
+  /**
+   * @작성자 김태영, 염하늘
+   * @description 레이드 종료 시 유저 랭킹을 레디스에 업데이트
+   */
+  async updateUserRanking(userId: number, score: number): Promise<void> {
     try {
-      let ranking;
-      ranking = await this.cacheManager.get('ranking');
-
-      if (!ranking) {
-        ranking = new Map();
-      }
-
-      ranking.set(`${userId}`, totalScore);
-      await this.cacheManager.set('ranking', ranking, { ttl: 0 });
+      await this.redis.zincrby('Raid-Rank', score, userId);
     } catch (error) {
       throw new InternalServerErrorException(ErrorType.redisError.msg);
     }
   }
 
-  /* 
-    작성자 : 김용민
-      - 레이드 상태가 유효한 값인지 확인
-  */
-  checkRaidStatus(raidStatus: RaidStatus, userId: number, raidRecordId: number) {
+  /**
+   * @작성자 김용민
+   * @description 레이드 상태가 유효한 값인지 확인
+   */
+  checkRaidStatus(raidStatus: IRaidStatus, userId: number, raidRecordId: number) {
     // raidStatus가 없다면 레이드가 진행 중이지 않거나 시간 초과
     if (!raidStatus) {
-      throw new NotFoundException(ErrorType.raidStatusNotFound);
+      throw new NotFoundException(ErrorType.raidStatusNotFound.msg);
     }
 
     // 사용자 불일치 or 레이드 기록 불일치
     if (raidStatus.enteredUserId !== userId || raidStatus.raidRecordId !== raidRecordId) {
-      throw new BadRequestException(ErrorType.raidStatusBadRequest);
+      throw new BadRequestException(ErrorType.raidStatusBadRequest.msg);
     }
   }
 
+  /**
+   * @작성자 김용민
+   * @description 레이드 기록 가져오기
+   */
   async getRaidRecordById(raidStatusId: number) {
     const record = await this.raidRecordRepository.findOne({ where: { id: raidStatusId } });
 
     if (!record) {
-      throw new NotFoundException(ErrorType.raidRecordNotFound);
+      throw new NotFoundException(ErrorType.raidRecordNotFound.msg);
     }
 
     return record;

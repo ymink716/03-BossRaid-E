@@ -3,11 +3,9 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-
 import * as redisStore from 'cache-manager-redis-store';
 import { RaidModule } from './raid/raid.module';
 import { RedisModule } from '@nestjs-modules/ioredis';
-import { AppController } from './app.controller';
 import type { RedisClientOptions } from 'redis';
 
 @Module({
@@ -46,6 +44,5 @@ import type { RedisClientOptions } from 'redis';
       }),
     }),
   ],
-  controllers: [AppController],
 })
 export class AppModule {}
