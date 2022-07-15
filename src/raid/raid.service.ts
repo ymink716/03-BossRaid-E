@@ -43,7 +43,9 @@ export class RaidService {
     private playerQueue: Queue,
     @InjectRedis() private readonly redis: Redis,
     private readonly connection: Connection,
-  ) {}
+  ) {
+    this.staticDataCaching();  // 보스레이드 정보 초기화
+  }
 
   /**
    * @작성자 박신영
@@ -139,34 +141,24 @@ export class RaidService {
    */
   async endRaid(raidEndDto: RaidEndDto): Promise<void> {
     const { userId, raidRecordId } = raidEndDto;
-    let raidStatus: IRaidStatus;
+    const raidStatus: IRaidStatus = await this.cacheManager.get('raidStatus');
 
-    try {
-      raidStatus = await this.cacheManager.get('raidStatus');
-      // 레이드 상태가 유효한 값인지 확인
-      await this.checkRaidStatus(raidStatus, userId, raidRecordId);
+    // 레이드 상태가 유효한 값인지 확인
+    await this.checkRaidStatus(raidStatus, userId, raidRecordId);
 
-      // S3에서 보스레이드 정보 가져오기
-      const response = await AxiosHelper.getInstance();
-      const bossRaid = response.data.bossRaids[0];
-
-      const record: RaidRecord = await this.getRaidRecordById(raidRecordId);
-
-      for (const l of bossRaid.levels) {
-        if (l.level === record.level) {
-          record.score = l.score; // 레이드 기록에 보스 레벨에 따른 스코어 반영
-          break;
-        }
-      }
-      const user: User = await this.userService.getUserById(userId);
-      user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
-
-      await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
-      await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
-      await this.updateUserRanking(userId, record.score); // 유저 랭킹 업데이트
-    } catch (error) {
-      throw new InternalServerErrorException(ErrorType.serverError.msg);
+    const record: RaidRecord = await this.getRaidRecordById(raidRecordId);
+    const score = await this.cacheManager.get(`level_${record.level}`);
+    if (!score) {
+      throw new BadRequestException(ErrorType.raidLevelNotFound.msg);
     }
+    record.score = Number(score); // 레이드 기록에 보스 레벨에 따른 스코어 반영
+
+    const user: User = await this.userService.getUserById(userId);
+    user.totalScore = user.totalScore + record.score; // 유저의 totalScore 변경
+
+    await this.saveRaidRecord(user, record); // 레이드 기록 DB에 저장
+    await this.cacheManager.del('raidStatus'); // 진행 중인 보스레이드 레디스에서 삭제
+    await this.updateUserRanking(userId, record.score); // 유저 랭킹 업데이트
   }
 
   /**
@@ -204,21 +196,14 @@ export class RaidService {
 
     if (!raidRecord) throw new NotFoundException(ErrorType.raidRecordNotFound.msg); // 레이드 레코드 값이 없을 시 에러
 
-    let bossRaid;
-    try {
-      const response = await AxiosHelper.getInstance();
-      bossRaid = response.data.bossRaids[0]; // static data 불러오기
-    } catch (error) {
-      throw new MisdirectedException(ErrorType.axiosError.msg);
-    }
-
     const now = moment(); // 현재시간
     const enterTime = moment(raidRecord.enterTime); // 레이드 기록 상의 레이드 시작 시간
 
     const duration = moment.duration(now.diff(enterTime)).asSeconds(); // moment.js로 현재시간과 레이드 시작시간 간의 차이(초) 계산
-
+    const bossRaidLimitSeconds = await this.cacheManager.get('bossRaidLimitSeconds');  // 레이드 제한 시간
+  
     const result: IRaidStatus =
-      duration < bossRaid.bossRaidLimitSeconds // 현재시간과 레이드 시작 시간간의 차이가 레이드 제한시간 보다 작을시 레이드가 진행중인 것으로 간주합니다
+      duration < Number(bossRaidLimitSeconds) // 현재시간과 레이드 시작 시간간의 차이가 레이드 제한시간 보다 작을시 레이드가 진행중인 것으로 간주합니다
         ? { canEnter: false, enteredUserId: raidRecord.user.id, raidRecordId: raidRecord.id }
         : { canEnter: true, enteredUserId: null, raidRecordId: null }; // 상태 정보가 존재하면 그대로 전달, 존재하지 않으면 입장여부 true로 전달
     return result;
@@ -282,11 +267,11 @@ export class RaidService {
         const sameScoreList = await this.redis.zrevrangebyscore('Raid-Rank', score, score);
         const firstKey = sameScoreList[0];
         const rank = await this.redis.zrevrank('Raid-Rank', firstKey);
-
         const result: IRankingInfo = { ranking: rank + 1, userId: Number(el), totalScore: Number(score) };
         return result;
       }),
     );
+
     return resultTotal;
   }
 

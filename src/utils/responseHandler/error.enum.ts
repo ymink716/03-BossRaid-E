@@ -13,6 +13,7 @@ export const ErrorType = {
   raidStatusNotFound: { code: 404, msg: '진행 중인 레이드가 없습니다.'},
   raidStatusBadRequest: { code: 400, msg: '진행 중인 레이드 정보와 일치하지 않습니다.'},
   raidStatusForbidden: { code: 400, msg: '레이드에 접근할 수 없습니다.'},// 추후 수정
+  raidLevelNotFound: { code: 404, msg: '해당 레이드 레벨이 존재하지 않습니다.'},
 
 
   // Server

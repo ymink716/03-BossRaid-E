@@ -16,7 +16,7 @@ import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiTags } from '@nestjs/swa
 import { Response } from 'express';
 import { AuthService } from 'src/auth/auth.service';
 import { LoginDto } from 'src/user/dto/login.dto';
-import { UserResponse } from 'src/user/dto/login.response';
+import { LookupUserResponse, SignUpResponse, UserResponse } from 'src/user/dto/user.response';
 import { CreateUserDTO } from './dto/createUser.dto';
 import { User } from './entities/user.entity';
 import { UserService } from './user.service';
@@ -34,24 +34,24 @@ export class UserController {
   /**
    * @작성자 김용민
    * @description 사용자를 생성하여 회원가입 처리하는 컨트롤러
-  */
+   */
   @Post('')
   @ApiBody({ type: CreateUserDTO })
-  @ApiCreatedResponse({ description: MSG.createUser.msg, type: UserResponse })
+  @ApiCreatedResponse({ description: MSG.createUser.msg, type: SignUpResponse })
   async signUp(@Body() createUserDto: CreateUserDTO) {
     const result = await this.userService.createUser(createUserDto);
 
-    return UserResponse.response(result, MSG.createUser.code, MSG.createUser.msg);
+    return UserResponse.response({ userId: result.id }, MSG.createUser.code, MSG.createUser.msg);
   }
 
   /**
    * @작성자 김지유
    * @description 유저 정보 조회
-  */
+   */
   @ApiBearerAuth('access_token')
   @UseGuards(JwtAuthGuard)
   @Get('/:userId')
-  @ApiCreatedResponse({ description: MSG.getUser.msg, type: UserResponse })
+  @ApiCreatedResponse({ description: MSG.getUser.msg, type: LookupUserResponse })
   async getUserInfo(@Param('userId') userId: number) {
     const result = await this.userService.getUserInfo(userId);
 
@@ -61,7 +61,7 @@ export class UserController {
   /**
    * @작성자 박신영
    * @description access token, resfresh token 발급하여 로그인 처리
-  */
+   */
   @ApiBody({ type: LoginDto })
   @ApiCreatedResponse({ description: MSG.loginUser.msg, type: UserResponse })
   @UseGuards(LocalAuthGuard)
@@ -80,7 +80,7 @@ export class UserController {
   /**
    * @작성자 박신영
    * @description 토큰을 제거하여 로그아웃 기능 구현
-  */
+   */
   @ApiBearerAuth('access_token')
   @ApiCreatedResponse({ description: '성공' })
   @UseGuards(JwtAuthGuard)
@@ -100,7 +100,7 @@ export class UserController {
   /**
    * @작성자 박신영
    * @description 리프레시 토큰으로 액세스 토큰 재요청
-  */
+   */
   @UseGuards(JwtRefreshGuard)
   @ApiBearerAuth('access_token')
   @Get('/refreshToken')
