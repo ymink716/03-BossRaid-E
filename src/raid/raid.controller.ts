@@ -85,6 +85,7 @@ export class RaidController {
    * @작성자 염하늘
    * @description 레이드 유저 랭킹 조회 컨트롤러
    */
+  @ApiOperation({ description: '레이드 유저 랭킹 조회 api입니다', summary: '레이드 랭킹 조회' })
   @ApiBody({ type: TopRankerListDto })
   @Post('topRankerList')
   topRankerList(@Body() raidRankDto: TopRankerListDto) {
