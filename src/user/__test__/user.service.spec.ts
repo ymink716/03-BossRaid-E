@@ -227,17 +227,6 @@ describe('UserService', () => {
   });
 
   describe('refresh token 관리', () => {
-    // it('refreshToken 암호화 및 저장', () => {
-    //   // const result = setCurrentRefreshToken(refreshToken, email) {
-    //   //
-    //   // }
-    //   return;
-    // });
-
-    // it('refreshToken 유효성 확인', () => {
-
-    // });
-
     it('refreshToken 삭제', async () => {
       const id = 1;
       userMockRepository.update.mockResolvedValue(null);
