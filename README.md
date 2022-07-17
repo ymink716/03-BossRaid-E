@@ -56,7 +56,7 @@ Boss Raid PVE 컨텐츠와 관련한 API를 개발합니다. 사용자는 보스
 ##### :file_folder: **ETC**
 
 - [ERD](https://user-images.githubusercontent.com/57704568/179157151-da97740b-8704-4aa1-87dd-5974e8235f4b.png)
-- AWS Beanstalk을 사용한 배포: http://34.64.75.124:3000/api/docs
+- Docker & GCP를 이용한 배포: http://34.64.75.124:3000/api/docs
 - Lint, Prettier 포맷팅
 - [Ref. Commit Convention](https://github.com/pre-onboarding-backend-E/03-BossRaid-E/wiki/Commit-Convention)
 
@@ -109,7 +109,8 @@ yarn test
 ```
 1. swagger (api 문서)
   - localhost:3000/api/docs 접속 - local
-  - 배포 ip /접속 - 배포
+  - http://34.64.75.124:3000/api/docs/ 접속 - 배포 링크 (Docker & GCP 이용)
+
 2. sign up을 통해 user를 생성하고 login 후 api를 테스트 할 수 있습니다.
 ```
 
@@ -187,7 +188,7 @@ yarn test
 <summary>보스 레이드 종류 후 상태 확인 _ 입장 가능</summary>
 <div markdown="1">
 
-![보스 레이드 종류 후 다시 조회시 입장 가능](./images/gif/%EC%A2%85%EB%A3%8C%20%ED%9B%84%20%EB%8B%A4%EC%8B%9C%20%EC%A1%B0%ED%9A%8C%EC%8B%9C%20%EC%9E%85%EC%9E%A5%EA%B0%80%EB%8A%A5.gif)
+![보스 레이드 종료 후 다시 조회 시 입장 가능](./images/gif/%EC%A2%85%EB%A3%8C%20%ED%9B%84%20%EB%8B%A4%EC%8B%9C%20%EC%A1%B0%ED%9A%8C%EC%8B%9C%20%EC%9E%85%EC%9E%A5%EA%B0%80%EB%8A%A5.gif)
 
 </div>
 </details>
